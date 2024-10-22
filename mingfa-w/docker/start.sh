@@ -1,6 +1,7 @@
 #!/bin/bash -xe
 . ./common.sh
 CONTAINER_NAME=$USER.$tag
+STOP=0
 docker_in_docker=" --net=host --privileged -v /var/run/docker.sock:/var/run/docker.sock -v $(which docker):/bin/docker "
 #docker_run_flag=" --runtime=nvidia -e NVIDIA_VISIBLE_DEVICES=all --cap-add=SYS_PTRACE --security-opt seccomp=unconfined "
 
@@ -8,22 +9,42 @@ MOUNT_DIR=$HOME
 MOUNT_DIR_A800="  -v /data00:/data00 -v /data01:/data01 -v /data02:/data02 -v /data03:/data03 \
     -v /data04:/data04 -v /data05:/data05 -v /data06:/data06 -v /data07:/data07 "
 
-if [ ! -z "$1" ]; then
-    MOUNT_DIR=$1
-fi
+# 处理参数
+while getopts "su:" opt
+do
+    case $opt in
+        s)
+            echo "选项 -s(stop) 被设置"
+            STOP=1
+            ;;
+        u)
+            echo "选项 -u(user) 的值是 $OPTARG"
+            CONTAINER_NAME=$OPTARG.$tag
+            ;;
+        \?)
+            echo "无效选项: -$OPTARG" >&2
+            exit 1
+            ;;
+    esac
+done
 
 GROUP=`id -g -n`
 GROUPID=`id -g`
 OLD_ID=`docker ps -aq -f name=$CONTAINER_NAME -f status=running`
 echo ==== container name: $CONTAINER_NAME
-if [[ "$1 " == "show" ]]; then
-    exit
-fi
+# if [[ "$1 " == "show" ]]; then
+#     exit
+# fi
 
-if [[ "$1" == "root" ]]; then
-    echo === root ===
-    docker exec -it --user root $CONTAINER_NAME bash
-    exit
+# if [[ "$1" == "root" ]]; then
+#     echo === root ===
+#     docker exec -it --user root $CONTAINER_NAME bash
+#     exit
+# fi
+if [[ $STOP == 1 ]]; then
+    echo === stop $CONTAINER_NAME
+    docker stop $CONTAINER_NAME
+    exit 0
 fi
 
 if [ -z "$OLD_ID" ]; then

@@ -36,7 +36,6 @@ do
     esac
 done
 
-
 function build_triton(){
     if [ ! -d ${triton_src_dir/python/build} ]; then
         rm -rf ${triton_src_dir/python/build}
