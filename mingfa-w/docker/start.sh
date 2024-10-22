@@ -3,7 +3,7 @@
 CONTAINER_NAME=$USER.$tag
 STOP=0
 docker_in_docker=" --net=host --privileged -v /var/run/docker.sock:/var/run/docker.sock -v $(which docker):/bin/docker "
-#docker_run_flag=" --runtime=nvidia -e NVIDIA_VISIBLE_DEVICES=all --cap-add=SYS_PTRACE --security-opt seccomp=unconfined "
+docker_run_flag=" --runtime=nvidia -e NVIDIA_VISIBLE_DEVICES=all --cap-add=SYS_PTRACE --security-opt seccomp=unconfined "
 
 MOUNT_DIR=$HOME
 MOUNT_DIR_A800="  -v /data00:/data00 -v /data01:/data01 -v /data02:/data02 -v /data03:/data03 \
@@ -48,7 +48,7 @@ if [[ $STOP == 1 ]]; then
 fi
 
 if [ -z "$OLD_ID" ]; then
-    ID=`docker run $docker_in_docker -t -d --name $CONTAINER_NAME $MOUNT_DIR_A800 -v $MOUNT_DIR:/host --tmpfs /tmp:exec --rm $image `
+    ID=`docker run $docker_in_docker $docker_run_flag -t -d --name $CONTAINER_NAME $MOUNT_DIR_A800 -v $MOUNT_DIR:/host --tmpfs /tmp:exec --rm $image `
     docker exec --user root $ID groupadd -f -g $GROUPID $GROUP
     docker exec --user root $ID adduser --shell /bin/bash --uid $UID --gecos '' --ingroup $GROUP --disabled-password --home /home/$USER --force-badname $USER
     #docker exec --user root $ID bash -c " echo $USER ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USER && chmod 0440 /etc/sudoers.d/$USER"
