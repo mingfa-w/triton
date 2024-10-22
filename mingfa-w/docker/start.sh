@@ -1,9 +1,13 @@
 #!/bin/bash -xe
+script_dir=$(cd $(dirname $0); pwd)
+cur_dir=`pwd`
+cd ${script_dir}
 . ./common.sh
 CONTAINER_NAME=$USER.$tag
 STOP=0
 docker_in_docker=" --net=host --privileged -v /var/run/docker.sock:/var/run/docker.sock -v $(which docker):/bin/docker "
-docker_run_flag=" --runtime=nvidia -e NVIDIA_VISIBLE_DEVICES=all --cap-add=SYS_PTRACE --security-opt seccomp=unconfined "
+# docker_run_flag=" --runtime=nvidia -e NVIDIA_VISIBLE_DEVICES=all --cap-add=SYS_PTRACE --security-opt seccomp=unconfined "
+docker_run_flag=" --gpus all "
 
 MOUNT_DIR=$HOME
 MOUNT_DIR_A800="  -v /data00:/data00 -v /data01:/data01 -v /data02:/data02 -v /data03:/data03 \
@@ -104,5 +108,5 @@ if [ -z "$OLD_ID" ]; then
     # docker exec --user $USER $ID bash -c "go env -w GOMODCACHE=\"\$HOME/go\""
     
 fi
-
+cd ${cur_dir}
 docker exec -it --user $USER $CONTAINER_NAME bash

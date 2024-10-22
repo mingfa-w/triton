@@ -43,6 +43,16 @@ RUN python3 -m venv ${PY3_TRITON} && \
     ${PY3_TRITON}/bin/pip3 install wheel setuptools ninja wheel pybind11 torch numpy scipy pytest lit pandas matplotlib && \
     chmod 777 -R ${PY3_TRITON}
 
+# build triton
+ENV PATH=${PY3_TRITON}/bin:$PATH
+ENV PATH=${PY3_TRITON}/bin/activate:$PATH
+RUN . ${PY3_TRITON}/bin/activate
+ARG PY3_TRITON=/opt/apps/triton-src
+RUN mkdir -p ${PY3_TRITON} && cd ${PY3_TRITON} && \
+    git clone -b mingfa-w/d39ee1f9 https://github.com/mingfa-w/triton.git && \
+    cd triton && \
+    bash mingfa-w/build.sh
+
 EXPOSE 22 9000 9001 9002 9003 9004 9005 9006   
 WORKDIR /host
 # ENTRYPOINT "/bin/bash"
