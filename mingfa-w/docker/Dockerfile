@@ -37,9 +37,10 @@ RUN mkdir /tmp/llvm && cd /tmp/llvm && \
     rm -rf /tmp/llvm
 # ENV PATH=${LLVM_INSTALL_PATH}/bin:$PATH
 
+# create python venv
 ARG PY3_TRITON=/opt/apps/py3-triton
 RUN python3 -m venv ${PY3_TRITON} && \
-    ${PY3_TRITON}/bin/pip3 install wheel setuptools ninja wheel pybind11 && \
+    ${PY3_TRITON}/bin/pip3 install wheel setuptools ninja wheel pybind11 torch numpy scipy pytest lit pandas matplotlib && \
     chmod 777 -R ${PY3_TRITON}
 
 EXPOSE 22 9000 9001 9002 9003 9004 9005 9006   
