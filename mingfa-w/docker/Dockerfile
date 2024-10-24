@@ -2,7 +2,7 @@ ARG BASE_IMAGE=nvcr.io/nvidia/cuda:12.5.1-devel-ubuntu20.04
 FROM ${BASE_IMAGE}
 
 RUN echo "root:8uhb9ijn" | chpasswd
-EXPOSE 22 9405 5555
+# EXPOSE 22 9405 5555
 
 RUN apt-get update && apt-get -y --no-install-recommends install \
     wget \
@@ -50,6 +50,7 @@ RUN mkdir -p ${CONDA_PATH} && cd ${CONDA_PATH} && \
 # create python venv
 ARG PY3_TRITON=/opt/apps/py3-triton
 RUN ${CONDA_PATH}/envs/triton-py3124/bin/python -m venv ${PY3_TRITON} && \
+    ${PY3_TRITON}/bin/pip install --upgrade pip && \
     ${PY3_TRITON}/bin/pip3 install wheel setuptools ninja wheel pybind11 torch numpy scipy pytest lit pandas matplotlib && \
     chmod 777 -R ${PY3_TRITON}
 
@@ -64,8 +65,13 @@ RUN mkdir -p ${TRITON} && cd ${TRITON} && \
     git clone -b mingfa-w/d39ee1f9 https://github.com/mingfa-w/triton.git && \
     cd triton && \
     bash mingfa-w/build.sh
+# 设置SSH无密码登录（如果需要）
+RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
+    mkdir -p /var/run/sshd
 
-EXPOSE 22 9000 9001 9002 9003 9004 9005 9006   
+EXPOSE 22 9000 9001 9002 9003 9004 9005 9006
+# 设置sshd自启动
+CMD ["/usr/sbin/sshd", "-D"]
 WORKDIR /host
 # ENTRYPOINT "/bin/bash"
  

@@ -5,7 +5,8 @@ cd ${script_dir}
 . ./common.sh
 CONTAINER_NAME=$USER.$tag
 STOP=0
-docker_in_docker=" --net=host --privileged -v /var/run/docker.sock:/var/run/docker.sock -v $(which docker):/bin/docker "
+# docker_in_docker=" --net=host --privileged -v /var/run/docker.sock:/var/run/docker.sock -v $(which docker):/bin/docker "
+docker_in_docker=" -p 9006:22 --privileged -v /var/run/docker.sock:/var/run/docker.sock -v $(which docker):/bin/docker "
 # docker_run_flag=" --runtime=nvidia -e NVIDIA_VISIBLE_DEVICES=all --cap-add=SYS_PTRACE --security-opt seccomp=unconfined "
 docker_run_flag=" --gpus all "
 
@@ -36,6 +37,7 @@ GROUP=`id -g -n`
 GROUPID=`id -g`
 OLD_ID=`docker ps -aq -f name=$CONTAINER_NAME -f status=running`
 echo ==== container name: $CONTAINER_NAME
+
 # if [[ "$1 " == "show" ]]; then
 #     exit
 # fi
