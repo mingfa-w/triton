@@ -28,14 +28,29 @@ RUN mkdir /tmp/cmake && cd /tmp/cmake && \
     ./configure && make -j$(nproc) && make install && \
     rm -rf /tmp/cmake
 
-# install llvm
+# install llvm for triton
 ENV LLVM_INSTALL_PATH=/opt/llvm_triton-d39ee1f9-llvm-61f8a7f6
 RUN mkdir /tmp/llvm && cd /tmp/llvm && \
     git clone -b mingfa-w/triton-d39ee1f9-llvm-61f8a7f6 https://github.com/mingfa-w/llvm-project.git && \
     cd llvm-project && \
     bash mingfa-w/build.sh -p ${LLVM_INSTALL_PATH} -r && \
     rm -rf /tmp/llvm
-# ENV PATH=${LLVM_INSTALL_PATH}/bin:$PATH
+
+# install llvm for triton-shared
+ENV LLVM_INSTALL_PATH=/opt/llvm_triton-31040564-llvm-c08c6a71
+RUN mkdir /tmp/llvm && cd /tmp/llvm && \
+    git clone -b mingfa-w/triton-31040564-llvm-c08c6a71 https://github.com/mingfa-w/llvm-project.git && \
+    cd llvm-project && \
+    bash mingfa-w/build.sh -p ${LLVM_INSTALL_PATH} -r && \
+    rm -rf /tmp/llvm
+
+# install llvm for triton-linalg
+ENV LLVM_INSTALL_PATH=/opt/llvm_triton-e601be5d-llvm-10dc3a8e
+RUN mkdir /tmp/llvm && cd /tmp/llvm && \
+    git clone -b mingfa-w/triton-e601be5d-llvm-10dc3a8e https://github.com/mingfa-w/llvm-project.git && \
+    cd llvm-project && \
+    bash mingfa-w/build.sh -p ${LLVM_INSTALL_PATH} -r && \
+    rm -rf /tmp/llvm
 
 # install conda
 ARG CONDA_PATH=/opt/apps/miniconda3
@@ -43,10 +58,9 @@ RUN mkdir -p ${CONDA_PATH} && cd ${CONDA_PATH} && \
     wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ${CONDA_PATH}/miniconda.sh && \
     bash ${CONDA_PATH}/miniconda.sh -b -u -p ${CONDA_PATH} && \
     rm ${CONDA_PATH}/miniconda.sh && \
-    ${CONDA_PATH}/bin/conda init && \
     ${CONDA_PATH}/bin/conda create -n triton-py3124 python=3.12.4
 
-# create python venv
+# create python venv for py3-triton
 ARG PY3_TRITON=/opt/apps/py3-triton
 RUN ${CONDA_PATH}/envs/triton-py3124/bin/python -m venv ${PY3_TRITON} && \
     ${PY3_TRITON}/bin/pip install --upgrade pip && \
@@ -63,6 +77,43 @@ RUN mkdir -p ${TRITON} && cd ${TRITON} && \
     git clone -b mingfa-w/d39ee1f9 https://github.com/mingfa-w/triton.git && \
     cd triton && \
     bash mingfa-w/build.sh
+
+# create python venv for py3-triton-shared
+ARG PY3_TRITON_SHARED=/opt/apps/py3-triton-shared
+RUN ${CONDA_PATH}/envs/triton-py3124/bin/python -m venv ${PY3_TRITON_SHARED} && \
+    ${PY3_TRITON_SHARED}/bin/pip install --upgrade pip && \
+    ${PY3_TRITON_SHARED}/bin/pip3 install wheel setuptools ninja wheel pybind11 torch numpy scipy pytest lit pandas matplotlib && \
+    chmod 777 -R ${PY3_TRITON_SHARED}
+
+# build triton-shared
+ENV PATH=${PY3_TRITON_SHARED}/bin:$PATH
+ENV PATH=${PY3_TRITON_SHARED}/bin/activate:$PATH
+RUN . ${PY3_TRITON_SHARED}/bin/activate
+
+ARG TRITON=/opt/apps/triton-shared-src
+RUN mkdir -p ${TRITON} && cd ${TRITON} && \
+    git clone --recurse-submodules -b mingfa-w/5bd61a02 https://github.com/mingfa-w/triton-shared.git && \
+    cd triton-shared && \
+    bash mingfa-w/build.sh
+
+# create python venv for py3-triton-linalg
+ARG PY3_TRITON_LINALG=/opt/apps/py3-triton-linalg
+RUN ${CONDA_PATH}/envs/triton-py3124/bin/python -m venv ${PY3_TRITON_LINALG} && \
+    ${PY3_TRITON_LINALG}/bin/pip install --upgrade pip && \
+    ${PY3_TRITON_LINALG}/bin/pip3 install wheel setuptools ninja wheel pybind11 torch numpy scipy pytest lit pandas matplotlib && \
+    chmod 777 -R ${PY3_TRITON_LINALG}
+
+# build triton-linalg
+ENV PATH=${PY3_TRITON_LINALG}/bin:$PATH
+ENV PATH=${PY3_TRITON_LINALG}/bin/activate:$PATH
+RUN . ${PY3_TRITON_LINALG}/bin/activate
+
+ARG TRITON=/opt/apps/triton-linalg-src
+RUN mkdir -p ${TRITON} && cd ${TRITON} && \
+    git clone --recurse-submodules -b mingfa-w/e601be5d https://github.com/mingfa-w/triton-linalg.git && \
+    cd triton-linalg && \
+    bash mingfa-w/build.sh
+
 # 设置SSH无密码登录（如果需要）
 RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
     mkdir -p /var/run/sshd
