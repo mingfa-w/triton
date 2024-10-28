@@ -5,17 +5,10 @@ cd ${script_dir}
 . ./common.sh
 CONTAINER_NAME=$USER.$tag
 STOP=0
-# docker_in_docker=" --net=host --privileged -v /var/run/docker.sock:/var/run/docker.sock -v $(which docker):/bin/docker "
-docker_in_docker=" -p 9006:22 --privileged -v /var/run/docker.sock:/var/run/docker.sock -v $(which docker):/bin/docker "
-# docker_run_flag=" --runtime=nvidia -e NVIDIA_VISIBLE_DEVICES=all --cap-add=SYS_PTRACE --security-opt seccomp=unconfined "
-docker_run_flag=" --gpus all "
-
-MOUNT_DIR=$HOME
-MOUNT_DIR_A800="  -v /data00:/data00 -v /data01:/data01 -v /data02:/data02 -v /data03:/data03 \
-    -v /data04:/data04 -v /data05:/data05 -v /data06:/data06 -v /data07:/data07 "
+PORT=9006
 
 # 处理参数
-while getopts "su:" opt
+while getopts "su:p:" opt
 do
     case $opt in
         s)
@@ -26,12 +19,26 @@ do
             echo "选项 -u(user) 的值是 $OPTARG"
             CONTAINER_NAME=$OPTARG.$tag
             ;;
+        p)
+            echo "选项 -p(port) 的值是 $OPTARG"
+            PORT=$OPTARG
+            ;;
         \?)
             echo "无效选项: -$OPTARG" >&2
             exit 1
             ;;
     esac
 done
+
+# docker_in_docker=" --net=host --privileged -v /var/run/docker.sock:/var/run/docker.sock -v $(which docker):/bin/docker "
+docker_in_docker=" -p $PORT:22 --privileged -v /var/run/docker.sock:/var/run/docker.sock -v $(which docker):/bin/docker "
+# echo $docker_in_docker ====; exit 0
+# docker_run_flag=" --runtime=nvidia -e NVIDIA_VISIBLE_DEVICES=all --cap-add=SYS_PTRACE --security-opt seccomp=unconfined "
+docker_run_flag=" --gpus all "
+
+MOUNT_DIR=$HOME
+MOUNT_DIR_A800="  -v /data00:/data00 -v /data01:/data01 -v /data02:/data02 -v /data03:/data03 \
+    -v /data04:/data04 -v /data05:/data05 -v /data06:/data06 -v /data07:/data07 "
 
 GROUP=`id -g -n`
 GROUPID=`id -g`

@@ -44,12 +44,14 @@ function build_triton(){
     # source $HOME/apps/venv/python3112-triton/bin/activate
     source $py_venv_path
     # pip install ninja cmake wheel pybind11 # build-time dependencies
-    
+    # 设置Degun模式
+    export DEBUG=1
     LLVM_INCLUDE_DIRS=${llvm_install_dir}/include \
     LLVM_LIBRARY_DIR=${llvm_install_dir}/lib \
     LLVM_SYSPATH=${llvm_install_dir} \
     TRITON_BUILD_WITH_CLANG_LLD=true \
     TRITON_BUILD_WITH_CCACHE=true \
+    TORCH_USE_CUDA_DSA=true \
     pip install -e python --no-build-isolation
     cd ${current_dir}
 }

@@ -45,7 +45,6 @@ RUN mkdir -p ${CONDA_PATH} && cd ${CONDA_PATH} && \
     rm ${CONDA_PATH}/miniconda.sh && \
     ${CONDA_PATH}/bin/conda init && \
     ${CONDA_PATH}/bin/conda create -n triton-py3124 python=3.12.4
-    
 
 # create python venv
 ARG PY3_TRITON=/opt/apps/py3-triton
@@ -58,8 +57,7 @@ RUN ${CONDA_PATH}/envs/triton-py3124/bin/python -m venv ${PY3_TRITON} && \
 ENV PATH=${PY3_TRITON}/bin:$PATH
 ENV PATH=${PY3_TRITON}/bin/activate:$PATH
 RUN . ${PY3_TRITON}/bin/activate
-# 设置debug模式
-ENV DEBUG=1
+
 ARG TRITON=/opt/apps/triton-src
 RUN mkdir -p ${TRITON} && cd ${TRITON} && \
     git clone -b mingfa-w/d39ee1f9 https://github.com/mingfa-w/triton.git && \
@@ -72,6 +70,8 @@ RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/
 EXPOSE 22 9000 9001 9002 9003 9004 9005 9006
 # 设置sshd自启动
 CMD ["/usr/sbin/sshd", "-D"]
+# CMD ["source", "/opt/apps/py3-triton/bin/activate"]
 WORKDIR /host
-# ENTRYPOINT "/bin/bash"
+# ENTRYPOINT ["/bin/bash"]
+# ENTRYPOINT ["source", "/opt/apps/py3-triton/bin/activate"]
  
