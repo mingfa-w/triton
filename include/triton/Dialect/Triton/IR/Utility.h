@@ -178,7 +178,7 @@ auto min_element(R &&Range, Compare &&C) {
 template <typename R> auto max_element(R &&Range) {
   return std::max_element(llvm::adl_begin(Range), llvm::adl_end(Range));
 }
-template <typename R, typename T, typename Compare>
+template <typename R, typename Compare>
 auto max_element(R &&Range, Compare &&C) {
   return std::max_element(llvm::adl_begin(Range), llvm::adl_end(Range),
                           std::forward<Compare>(C));

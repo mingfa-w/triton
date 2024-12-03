@@ -1067,8 +1067,8 @@ createAsyncOps(scf::ForOp &forOp, CoarseSchedule &schedule,
   // allocate only the number of buffers that specific loads need.
   // Instead, we allocate the maximum number of buffers needed by any load.
   int numBuffers =
-      llvm::max_element(llvm::make_second_range(loadToInfo), [](auto &lhs,
-                                                                auto &rhs) {
+      tt::max_element(llvm::make_second_range(loadToInfo), [](auto &lhs,
+                                                              auto &rhs) {
         return lhs.distToUse < rhs.distToUse;
       })->distToUse;
   bool hasMMAV3 =

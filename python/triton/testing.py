@@ -2,6 +2,7 @@ import functools
 import os
 import subprocess
 import sys
+import numpy as np
 from contextlib import contextmanager
 from typing import Any, Dict, List
 from . import language as tl
@@ -103,9 +104,29 @@ def do_bench(fn, warmup=25, rep=100, grad_to_none=None, quantiles=None, fast_flu
     """
     assert return_mode in ["min", "max", "mean", "median"]
     import torch
+    if (torch.npu.is_available()):
+        for _ in range(warmup):
+            fn()
+        import time
+        start_time = time.time()
+        run_cnt = rep
+        torch.npu.synchronize()
+        for _ in range(run_cnt):
+            fn()
+        torch.npu.synchronize()
+        end_time = time.time()
+        times = []
+        times.append((end_time - start_time) * 1000)
+        times = np.array(times)
+        if quantiles is not None:
+            ret = np.quantile(times, quantiles).tolist()
+            if len(ret) == 1:
+                ret = ret[0]
+            return ret
+        return getattr(np, return_mode)(times).item()
 
     fn()
-    torch.cuda.synchronize()
+    #torch.cuda.synchronize()
 
     # We maintain a buffer of 256 MB that we clear
     # before each kernel call to make sure that the L2 cache
