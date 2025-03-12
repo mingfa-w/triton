@@ -1,5 +1,5 @@
-from triton.backends.compiler import BaseBackend, GPUTarget, AttrsDescriptor, register_descriptor
-from triton._C.libtriton import ir, passes, llvm, amd
+from bytedance.triton.backends.compiler import BaseBackend, GPUTarget, AttrsDescriptor, register_descriptor
+from bytedance.triton._C.libtriton import ir, passes, llvm, amd
 from dataclasses import dataclass
 from typing import Any, Dict, Tuple
 from types import ModuleType
@@ -150,8 +150,8 @@ class HIPBackend(BaseBackend):
         return codegen_fns
 
     def get_module_map(self) -> Dict[str, ModuleType]:
-        from triton.language.extra.hip import libdevice
-        return {"triton.language.extra.libdevice": libdevice}
+        from bytedance.triton.language.extra.hip import libdevice
+        return {"bytedance.triton.language.extra.libdevice": libdevice}
 
     def load_dialects(self, ctx):
         amd.load_dialects(ctx)

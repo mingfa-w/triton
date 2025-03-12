@@ -1,6 +1,6 @@
-import triton
-import triton.language as tl
-import triton.compiler as tc
+import bytedance.triton as triton
+import bytedance.triton.language as tl
+import bytedance.triton.compiler as tc
 
 
 # triton kernel

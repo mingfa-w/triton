@@ -71,7 +71,7 @@ class BackendInstaller:
         for file in ["compiler.py", "driver.py"]:
             assert os.path.exists(os.path.join(backend_path, file)), f"${file} does not exist in ${backend_path}"
 
-        install_dir = os.path.join(os.path.dirname(__file__), "triton", "backends", backend_name)
+        install_dir = os.path.join(os.path.dirname(__file__), "bytedance", "triton", "backends", backend_name)
         package_data = [f"{os.path.relpath(p, backend_path)}/*" for p, _, _, in os.walk(backend_path)]
 
         language_package_data = []
@@ -573,7 +573,7 @@ def add_link_to_backends():
         if backend.language_dir:
             # Link the contents of each backend's `language` directory into
             # `triton.language.extra`.
-            extra_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "triton", "language", "extra"))
+            extra_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "bytedance/triton", "language", "extra"))
             for x in os.listdir(backend.language_dir):
                 src_dir = os.path.join(backend.language_dir, x)
                 install_dir = os.path.join(extra_dir, x)
@@ -629,8 +629,8 @@ class plugin_egginfo(egg_info):
 
 
 package_data = {
-    "triton/tools": ["compile.h", "compile.c"], **{f"triton/backends/{b.name}": b.package_data
-                                                   for b in backends}, "triton/language/extra": sum(
+    "bytedance/triton/tools": ["compile.h", "compile.c"], **{f"bytedance/triton/backends/{b.name}": b.package_data
+                                                   for b in backends}, "bytedance/triton/language/extra": sum(
         (b.language_package_data for b in backends), [])
 }
 
@@ -650,7 +650,7 @@ def get_language_extra_packages():
                 # "triton/language/extra".
                 continue
             subpackage = os.path.relpath(dir, backend.language_dir)
-            package = os.path.join("triton/language/extra", subpackage)
+            package = os.path.join("bytedance/triton/language/extra", subpackage)
             packages.append(package)
 
     return list(packages)
@@ -658,19 +658,19 @@ def get_language_extra_packages():
 
 def get_packages():
     packages = [
-        "triton",
-        "triton/_C",
-        "triton/compiler",
-        "triton/language",
-        "triton/language/extra",
-        "triton/runtime",
-        "triton/backends",
-        "triton/tools",
+        "bytedance/triton",
+        "bytedance/triton/_C",
+        "bytedance/triton/compiler",
+        "bytedance/triton/language",
+        "bytedance/triton/language/extra",
+        "bytedance/triton/runtime",
+        "bytedance/triton/backends",
+        "bytedance/triton/tools",
     ]
-    packages += [f'triton/backends/{backend.name}' for backend in backends]
+    packages += [f'bytedance/triton/backends/{backend.name}' for backend in backends]
     packages += get_language_extra_packages()
     if check_env_flag("TRITON_BUILD_PROTON", "ON"):  # Default ON
-        packages += ["triton/profiler"]
+        packages += ["bytedance/triton/profiler"]
 
     return packages
 
@@ -692,9 +692,9 @@ def get_git_commit_hash(length=8):
     except Exception:
         return ""
 
-
 setup(
-    name=os.environ.get("TRITON_WHEEL_NAME", "triton"),
+    # name=os.environ.get("TRITON_WHEEL_NAME", "triton"),
+    name='bytedance.' + 'triton',  # add the 'byted' prefix for package name
     version="3.0.0" + get_git_commit_hash() + os.environ.get("TRITON_WHEEL_VERSION_SUFFIX", ""),
     author="Philippe Tillet",
     author_email="phil@openai.com",
@@ -704,7 +704,7 @@ setup(
     entry_points=get_entry_points(),
     package_data=package_data,
     include_package_data=True,
-    ext_modules=[CMakeExtension("triton", "triton/_C/")],
+    ext_modules=[CMakeExtension("bytedance/triton", "bytedance/triton/_C/")],
     cmdclass={
         "build_ext": CMakeBuild,
         "build_py": CMakeBuildPy,

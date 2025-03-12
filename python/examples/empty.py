@@ -1,7 +1,7 @@
 import torch
 
-import triton
-import triton.language as tl
+from bytedance.triton import triton
+from bytedance.triton import triton.language as tl
 
 
 @triton.jit

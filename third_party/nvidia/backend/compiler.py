@@ -1,5 +1,5 @@
-from triton.backends.compiler import BaseBackend, GPUTarget
-from triton._C.libtriton import ir, passes, llvm, nvidia
+from bytedance.triton.backends.compiler import BaseBackend, GPUTarget
+from bytedance.triton._C.libtriton import ir, passes, llvm, nvidia
 
 from dataclasses import dataclass
 import functools
