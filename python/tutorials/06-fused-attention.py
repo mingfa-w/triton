@@ -16,8 +16,8 @@ Extra Credits:
 import pytest
 import torch
 
-import triton
-import triton.language as tl
+import bytedance.triton as triton
+import bytedance.triton.language as tl
 
 
 def is_hip():

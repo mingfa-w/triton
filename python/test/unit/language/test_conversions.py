@@ -5,8 +5,8 @@ import os
 import numpy as np
 import torch
 import pytest
-import triton
-import triton.language as tl
+import bytedance.triton as triton
+import bytedance.triton.language as tl
 
 def is_interpreter():
     return os.environ.get('TRITON_INTERPRET', '0') == '1'

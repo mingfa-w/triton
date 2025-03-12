@@ -6,8 +6,8 @@ from argparse import ArgumentParser
 from pathlib import Path
 from typing import List
 
-import triton
-import triton.backends
+import bytedance.triton as triton
+import bytedance.triton as triton.backends
 from triton.compiler.code_generator import kernel_suffix
 from triton.backends.nvidia.driver import ty_to_cpp
 

@@ -7,24 +7,26 @@ python/build/
 python/dist/
 python/*.egg-info/
 
-python/triton/_C/*.pyd
-python/triton/_C/*.so
-python/triton/_C/*.dylib
+python/bytedance/triton/_C/*.pyd
+python/bytedance/triton/_C/*.so
+python/bytedance/triton/_C/*.dylib
 
 # Backends copied from submodules
-python/triton/backends/
-!python/triton/backends/__init__.py
-!python/triton/backends/compiler.py
-!python/triton/backends/driver.py
+python/bytedance/triton/backends/
+!python/bytedance/triton/backends/__init__.py
+!python/bytedance/triton/backends/compiler.py
+!python/bytedance/triton/backends/driver.py
 
 # Language extras
-python/triton/language/extra
+python/bytedance/triton/language/extra
+!python/bytedance/triton/language/extra/__init__.py
+!python/bytedance/triton/language/extra/libdevice.py
 
 # Proton
-python/triton/profiler
+python/bytedance/triton/profiler
 
 # Instrumentation
-python/triton/instrumentation
+python/bytedance/triton/instrumentation
 
 # Python caches
 __pycache__/

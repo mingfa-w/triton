@@ -6,8 +6,8 @@ import tempfile
 import pytest
 import torch
 
-import triton
-import triton.language as tl
+import bytedance.triton as triton
+import bytedance.triton.language as tl
 from triton.runtime.jit import JITFunction
 from triton._internal_testing import is_hip
 
@@ -142,7 +142,7 @@ def write_and_load_module(code, num_extra_lines):
 def test_changed_line_numbers_invalidate_cache():
     from textwrap import dedent
     code = dedent("""
-        import triton
+        import bytedance.triton as triton
         @triton.jit
         def test_kernel(i):
             i = i + 1

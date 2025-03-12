@@ -1,4 +1,4 @@
-import triton.profiler as proton
+import bytedance.triton.profiler as proton
 
 import torch
 import sys

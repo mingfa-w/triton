@@ -1,5 +1,5 @@
 import functools
-import triton
+import bytedance.triton as triton
 import os
 
 from triton._C.libproton import proton as libproton

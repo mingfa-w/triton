@@ -1,12 +1,12 @@
 import torch
-import triton
-import triton.profiler as proton
+import bytedance.triton as triton
+import bytedance.triton.profiler as proton
 import tempfile
 import json
 import pytest
 from typing import NamedTuple
 
-import triton.language as tl
+import bytedance.triton.language as tl
 
 
 def is_hip():

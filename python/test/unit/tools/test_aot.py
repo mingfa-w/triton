@@ -6,12 +6,12 @@ import tempfile
 
 import numpy as np
 
-import triton
+import bytedance.triton as triton
 from triton.backends.compiler import GPUTarget
 from triton.backends.nvidia.driver import include_dir, library_dirs
 
 kernel_utils_src = """
-import triton
+import bytedance.triton as triton
 
 @triton.jit
 def mul(x, y):
@@ -19,8 +19,8 @@ def mul(x, y):
 """
 
 kernel_src = """
-import triton
-import triton.language as tl
+import bytedance.triton as triton
+import bytedance.triton.language as tl
 import kernel_utils
 
 @triton.jit

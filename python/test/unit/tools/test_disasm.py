@@ -1,8 +1,8 @@
 import torch
 
-import triton
+import bytedance.triton as triton
 import pytest
-import triton.language as tl
+import bytedance.triton.language as tl
 
 
 def test_disam_cubin():

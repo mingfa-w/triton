@@ -9,8 +9,8 @@ TODO: float8 types
 import pytest
 import torch
 
-import triton
-import triton.language as tl
+import bytedance.triton as triton
+import bytedance.triton.language as tl
 
 input_dtypes = ["float16", "float32", "float64"]
 out_dtypes = ["float16", "float32"]

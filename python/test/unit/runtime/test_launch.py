@@ -9,8 +9,8 @@ import tracemalloc
 
 import torch
 
-import triton
-import triton.language as tl
+import bytedance.triton as triton
+import bytedance.triton.language as tl
 
 # from typing import Tuple
 
@@ -80,8 +80,8 @@ def test_memory_leak(device) -> None:
 #         func_str = f"""
 #         import torch
 
-#         import triton
-#         import triton.language as tl
+#         import bytedance.triton as triton
+#         import bytedance.triton.language as tl
 
 #         @triton.jit
 #         def {kernel_name}({arg_str}):

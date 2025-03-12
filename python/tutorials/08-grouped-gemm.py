@@ -28,8 +28,8 @@ of gemms. The scheduling is static and we do it on device.
 
 import torch
 
-import triton
-import triton.language as tl
+import bytedance.triton as triton
+import bytedance.triton.language as tl
 
 
 @triton.autotune(

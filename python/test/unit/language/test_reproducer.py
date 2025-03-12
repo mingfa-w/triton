@@ -4,7 +4,7 @@ import shutil
 import pytest
 
 import torch
-import triton
+import bytedance.triton as triton
 import re
 
 

@@ -2,9 +2,9 @@
 
 import pytest
 import torch
-import triton
-import triton.language as tl
-import triton.tools.experimental_descriptor
+import bytedance.triton as triton
+import bytedance.triton.language as tl
+import bytedance.triton.tools.experimental_descriptor
 
 
 def is_cuda():

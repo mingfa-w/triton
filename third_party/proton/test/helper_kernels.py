@@ -1,5 +1,5 @@
-import triton.language as tl
-import triton
+import bytedance.triton.language as tl
+import bytedance.triton as triton
 
 
 @triton.jit

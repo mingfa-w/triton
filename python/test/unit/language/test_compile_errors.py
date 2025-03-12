@@ -3,8 +3,8 @@ import pytest
 import os
 
 import torch
-import triton
-import triton.language as tl
+import bytedance.triton as triton
+import bytedance.triton.language as tl
 from triton.compiler.errors import CompilationError, CompileTimeAssertionFailure
 import traceback
 

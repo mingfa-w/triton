@@ -3,8 +3,8 @@ import pytest
 import scipy.stats
 import torch
 
-import triton
-import triton.language as tl
+import bytedance.triton as triton
+import bytedance.triton.language as tl
 
 #####################################
 # Reference Philox Implementation

@@ -1,8 +1,8 @@
 import os
 import pytest
 import torch
-import triton.language as tl
-import triton
+import bytedance.triton.language as tl
+import bytedance.triton as triton
 
 @pytest.mark.parametrize('cond, opt_flag, env_var', [
     (cond, opt_flag, env_var) for cond in [True, False] \

@@ -2,8 +2,8 @@ import os
 import re
 import numpy as np
 import torch
-import triton
-import triton.language as tl
+import bytedance.triton as triton
+import bytedance.triton.language as tl
 import pytest
 
 from numpy.random import RandomState

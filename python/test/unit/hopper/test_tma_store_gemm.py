@@ -23,8 +23,8 @@ import pytest
 import torch
 from torch.testing import assert_close
 
-import triton
-import triton.language as tl
+import bytedance.triton as triton
+import bytedance.triton.language as tl
 
 
 @triton.jit

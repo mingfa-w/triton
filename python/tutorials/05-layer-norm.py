@@ -31,8 +31,8 @@ In doing so, you will learn about:
 
 import torch
 
-import triton
-import triton.language as tl
+import bytedance.triton as triton
+import bytedance.triton.language as tl
 
 try:
     # This is https://github.com/NVIDIA/apex, NOT the apex on PyPi, so it

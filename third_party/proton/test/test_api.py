@@ -1,5 +1,5 @@
 import json
-import triton.profiler as proton
+import bytedance.triton.profiler as proton
 import tempfile
 import pathlib
 

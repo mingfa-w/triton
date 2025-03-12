@@ -1,6 +1,6 @@
 import sys
 
-import triton
+import bytedance.triton as triton
 
 
 def test_is_lazy():

@@ -110,7 +110,7 @@ class Autotuner(KernelInterface):
                 )
                 return
 
-            import triton.testing
+            import bytedance.triton.testing
             self.do_bench = lambda kernel_call, quantiles: triton.testing.do_bench(
                 kernel_call,
                 warmup=warmup if warmup is not None else 25,
