@@ -224,7 +224,12 @@ def wget_url(url):
     triton_cache_path = get_triton_cache_path()
     npu_compiler_path = os.path.abspath(os.path.join(triton_cache_path, "npu"))
     npu_compiler_file = os.path.join(npu_compiler_path, "npu_compiler.tar.gz")
-    # 调用wget命令
+    subprocess.run([
+        'mkdir',
+        '-p',
+        npu_compiler_path
+    ])
+
     subprocess.run([
         'wget',
         '--header', "Authorization: Bearer df9bebbd68c1fc688ae656d31d6b9e7d",
@@ -632,7 +637,7 @@ download_and_copy_npu(
     name="npu_compiler", src_path="npu_compiler", dst_path="npu_compiler", variable="TRITON_NPU_COMPILER_PATH",
     version=NPU_TOOLCHAIN_VERSION["npu_compiler"], url_func=lambda system, arch, version:
     ((lambda version_major, version_minor1, version_minor2:
-      f"https://gitee.com/ascend/triton-ascend/releases/download/{version_major}.{version_minor1}.{version_minor2}/npu_compiler_aarch64.tar.gz")
+      f"https://gitee.com/ascend/triton-ascend/releases/download/{version_major}.{version_minor1}.{version_minor2}/npu_compiler_{platform.machine()}.tar.gz")
      (*version.split('.'))))
 
 backends = [*BackendInstaller.copy(["nvidia", "amd"]), *BackendInstaller.copy_externals()]
@@ -772,7 +777,7 @@ setup(
     # name=os.environ.get("TRITON_WHEEL_NAME", "triton"),
     name='bytedance.triton',  # add the 'byted' prefix for package name
     # version="3.0.0" + get_git_commit_hash() + os.environ.get("TRITON_WHEEL_VERSION_SUFFIX", ""),
-    version="3.0.0" + os.environ.get("TRITON_WHEEL_VERSION_SUFFIX", ""),
+    version="3.0.0.1" + os.environ.get("TRITON_WHEEL_VERSION_SUFFIX", ""),
     author="bytedance triton-x",
     author_email="wangmingfa@bytedance.com",
     description="A language and compiler for custom Deep Learning operations",
