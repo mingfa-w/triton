@@ -776,7 +776,7 @@ def get_git_commit_hash(length=8):
 setup(
     # name=os.environ.get("TRITON_WHEEL_NAME", "triton"),
     name='bytedance.triton',  # add the 'byted' prefix for package name
-    version="3.0.1" + get_git_commit_hash() + "_" + os.environ.get("TRITON_WHEEL_VERSION_SUFFIX", ""),
+    version="3.0.1" + get_git_commit_hash() + os.environ.get("TRITON_WHEEL_VERSION_SUFFIX", ""),
     # version="3.0.0.1" + os.environ.get("TRITON_WHEEL_VERSION_SUFFIX", ""),
     author="bytedance triton-x",
     author_email="wangmingfa@bytedance.com",
