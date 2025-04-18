@@ -14,8 +14,8 @@ import os
 import inspect
 from numpy.random import RandomState
 
-import bytedance.triton as triton
-import bytedance.triton.language as tl
+import bytedtriton as triton
+import bytedtriton.language as tl
 from triton.language.extra import libdevice
 
 from triton._internal_testing import (

@@ -1,7 +1,7 @@
-import bytedance.triton as triton
+import bytedtriton as triton
 import pytest
 import torch
-import bytedance.triton.language as tl
+import bytedtriton.language as tl
 
 from test_core import _test_binary, int_dtypes, uint_dtypes, float_dtypes, numpy_random
 

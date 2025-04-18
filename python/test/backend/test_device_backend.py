@@ -11,8 +11,8 @@ from pathlib import Path
 import setuptools
 import torch
 
-import bytedance.triton as triton
-import bytedance.triton.language as tl
+import bytedtriton as triton
+import bytedtriton.language as tl
 from triton.common.backend import (BaseBackend, compute_core_version_key, register_backend)
 from triton.common.build import quiet
 from triton.compiler.make_launcher import make_so_cache_key

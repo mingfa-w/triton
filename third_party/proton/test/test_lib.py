@@ -1,4 +1,4 @@
-import bytedance.triton._C.libproton.proton as libproton
+import bytedtriton._C.libproton.proton as libproton
 import tempfile
 import pathlib
 from triton.profiler.profile import _select_backend

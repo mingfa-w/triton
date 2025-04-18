@@ -1,4 +1,4 @@
-from bytedance.triton.language import core
+from bytedtriton.language import core
 
 
 @core.extern

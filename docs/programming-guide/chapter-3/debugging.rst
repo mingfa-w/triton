@@ -45,8 +45,8 @@ There are three primary ways to use the interpreter:
 
   .. code-block:: python
 
-    import bytedance.triton as triton
-    import bytedance.triton.language as tl
+    import bytedtriton as triton
+    import bytedtriton.language as tl
     import pdb
 
     @triton.jit

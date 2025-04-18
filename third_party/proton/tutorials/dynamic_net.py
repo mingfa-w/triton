@@ -2,7 +2,7 @@ import random
 import torch
 import math
 
-import bytedance.triton.profiler as proton
+import bytedtriton.profiler as proton
 import argparse
 
 mode = "torch"

@@ -1,6 +1,6 @@
 import torch
 
-import bytedance.triton as triton
+import bytedtriton as triton
 
 
 class TmaDescKernelParam:

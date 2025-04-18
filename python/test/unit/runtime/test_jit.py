@@ -2,8 +2,8 @@ import itertools
 import pytest
 import torch
 
-import bytedance.triton as triton
-import bytedance.triton.language as tl
+import bytedtriton as triton
+import bytedtriton.language as tl
 
 
 def test_pre_call_hooks(device):

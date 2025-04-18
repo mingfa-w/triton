@@ -1,5 +1,5 @@
-import bytedance.triton as triton
-import bytedance.triton.language as tl
+import bytedtriton as triton
+import bytedtriton.language as tl
 
 import torch
 import math

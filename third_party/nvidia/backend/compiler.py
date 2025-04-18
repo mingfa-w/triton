@@ -1,5 +1,5 @@
-from bytedance.triton.backends.compiler import BaseBackend, GPUTarget
-from bytedance.triton._C.libtriton import ir, passes, llvm, nvidia
+from bytedtriton.backends.compiler import BaseBackend, GPUTarget
+from bytedtriton._C.libtriton import ir, passes, llvm, nvidia
 
 from dataclasses import dataclass
 import functools
@@ -165,7 +165,7 @@ class CUDABackend(BaseBackend):
         )
 
     def get_codegen_implementation(self):
-        import bytedance.triton.language.extra.cuda as cuda
+        import bytedtriton.language.extra.cuda as cuda
         codegen_fns = {
             "convert_custom_types":
             cuda.convert_custom_float8_sm80 if self.capability >= 80 else cuda.convert_custom_float8_sm70,

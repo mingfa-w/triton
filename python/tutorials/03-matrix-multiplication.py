@@ -151,8 +151,8 @@ You will specifically learn about:
 
 import torch
 
-import bytedance.triton as triton
-import bytedance.triton.language as tl
+import bytedtriton as triton
+import bytedtriton.language as tl
 
 
 def is_cuda():

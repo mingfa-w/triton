@@ -6,8 +6,8 @@ from typing import Tuple
 import math
 import numpy as np
 
-import bytedance.triton as triton
-import bytedance.triton.language as tl
+import bytedtriton as triton
+import bytedtriton.language as tl
 from dataclasses import dataclass
 from .errors import InterpreterError
 from functools import partial

@@ -731,7 +731,7 @@ class JITFunction(KernelInterface[T]):
         from ..compiler import compile, ASTSource
         from triton.backends.compiler import AttrsDescriptor
         import json
-        import bytedance.triton.language as tl
+        import bytedtriton.language as tl
         device = driver.active.get_current_device()
         deserialized_obj = json.loads(specialization_data)
         if deserialized_obj['name'] != self.fn.__name__:

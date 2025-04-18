@@ -1,8 +1,8 @@
 import pytest
 import torch
 
-import bytedance.triton as triton
-import bytedance.triton.language as tl
+import bytedtriton as triton
+import bytedtriton.language as tl
 from triton.tools.experimental_descriptor import (create_1d_tma_descriptor, create_2d_tma_descriptor)
 from triton._internal_testing import dtypes_with_bfloat16, numpy_random, to_triton, requires_tma
 

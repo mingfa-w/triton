@@ -1,8 +1,8 @@
 from typing import Sequence
 
-from bytedance.triton.language import core
-from bytedance.triton.language import semantic
-from bytedance.triton._C.libtriton import ir
+from bytedtriton.language import core
+from bytedtriton.language import semantic
+from bytedtriton._C.libtriton import ir
 
 __all__ = [
     "experimental_device_tensormap_create1d",

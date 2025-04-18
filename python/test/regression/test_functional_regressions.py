@@ -3,8 +3,8 @@ import pytest
 import torch
 from numpy.random import RandomState
 
-import bytedance.triton as triton
-import bytedance.triton.language as tl
+import bytedtriton as triton
+import bytedtriton.language as tl
 
 
 def test_chained_matmul(device):

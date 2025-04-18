@@ -3,8 +3,8 @@ import torch
 import pytest
 import os
 
-import bytedance.triton as triton
-import bytedance.triton.language as tl
+import bytedtriton as triton
+import bytedtriton.language as tl
 
 test_stdout = 'Hello From First Instruction of GPU Kernel: kernel1\ttest_gpuhello.py:17:4\n\
 Hello From First Instruction of GPU Kernel: kernel2\ttest_gpuhello.py:23:4\n\

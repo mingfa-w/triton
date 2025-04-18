@@ -1,8 +1,8 @@
 import torch
 
-import bytedance.triton as triton
-import bytedance.triton.language as tl
-import bytedance.triton.profiler as proton
+import bytedtriton as triton
+import bytedtriton.language as tl
+import bytedtriton.profiler as proton
 from typing import NamedTuple
 import argparse
 

@@ -4,10 +4,10 @@ import hashlib
 import subprocess
 import tempfile
 from pathlib import Path
-from bytedance.triton.runtime.build import _build
-from bytedance.triton.runtime.cache import get_cache_manager
-from bytedance.triton.backends.compiler import GPUTarget
-from bytedance.triton.backends.driver import GPUDriver
+from bytedtriton.runtime.build import _build
+from bytedtriton.runtime.cache import get_cache_manager
+from bytedtriton.backends.compiler import GPUTarget
+from bytedtriton.backends.driver import GPUDriver
 
 dirname = os.path.dirname(os.path.realpath(__file__))
 include_dir = [os.path.join(dirname, "include")]
@@ -501,7 +501,7 @@ class HIPDriver(GPUDriver):
         return GPUTarget("hip", arch.split(':')[0], warp_size)
 
     def get_benchmarker(self):
-        from bytedance.triton.testing import do_bench
+        from bytedtriton.testing import do_bench
         return do_bench
 
     def get_empty_cache_for_benchmark(self):

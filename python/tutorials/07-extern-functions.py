@@ -17,8 +17,8 @@ Triton automatically selects the correct underlying device function to invoke ba
 
 import torch
 
-import bytedance.triton as triton
-import bytedance.triton.language as tl
+import bytedtriton as triton
+import bytedtriton.language as tl
 import inspect
 import os
 from triton.language.extra import libdevice

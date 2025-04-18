@@ -4,8 +4,8 @@ import uuid
 import torch
 from torch.testing import assert_close
 
-import bytedance.triton as triton
-import bytedance.triton.language as tl
+import bytedtriton as triton
+import bytedtriton.language as tl
 
 
 def get_current_target_warp_size():

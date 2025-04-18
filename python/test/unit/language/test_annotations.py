@@ -1,7 +1,7 @@
 from __future__ import annotations
 import torch
-import bytedance.triton as triton
-import bytedance.triton.language as tl
+import bytedtriton as triton
+import bytedtriton.language as tl
 import pytest
 
 

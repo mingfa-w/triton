@@ -23,13 +23,13 @@ import argparse
 import time
 
 import torch
-import bytedance.triton as triton
-import bytedance.triton.language as tl
-import bytedance.triton.tools.experimental_descriptor
-import bytedance.triton.profiler as proton
+import bytedtriton as triton
+import bytedtriton.language as tl
+import bytedtriton.tools.experimental_descriptor
+import bytedtriton.profiler as proton
 
 if torch.cuda.is_available():
-    from bytedance.triton._C.libtriton import nvidia
+    from bytedtriton._C.libtriton import nvidia
     cublas_workspace = torch.empty(32 * 1024 * 1024, device="cuda", dtype=torch.uint8)
     cublas = nvidia.cublas.CublasLt(cublas_workspace)
 else:
@@ -618,7 +618,7 @@ def validate(M, N, K, dtype, tiles_per_update):
 
 
 def show_profile(precision, profile_name):
-    import bytedance.triton.profiler.viewer as proton_viewer
+    import bytedtriton.profiler.viewer as proton_viewer
     metrics = ["time/ms"]
     if precision == 'fp8':
         metrics = ["tflop8/s"] + metrics
