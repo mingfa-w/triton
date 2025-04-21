@@ -42,6 +42,7 @@ class Backend:
 
 
 class BackendInstaller:
+    backends = []
 
     @staticmethod
     def prepare(backend_name: str, backend_src_dir: str = None, is_external: bool = False):
@@ -101,6 +102,11 @@ class BackendInstaller:
             BackendInstaller.prepare(backend_name, backend_src_dir=backend_src_dir, is_external=True)
             for backend_name, backend_src_dir in zip(backend_names, backend_dirs)
         ]
+
+    @staticmethod
+    def init_backends():
+        copy_3rdparty_dependencies()
+        BackendInstaller.backends = [*BackendInstaller.copy(["nvidia", "amd"]), *BackendInstaller.copy_externals()]
 
 
 # Taken from https://github.com/pytorch/pytorch/blob/master/tools/setup_helpers/env.py
@@ -337,6 +343,46 @@ def download_and_copy(name, src_path, dst_path, variable, version, url_func):
         shutil.copy(src_path, dst_path)
 
 
+# npu_compiler
+def download_and_copy_npu(name, src_path, dst_path, variable, version, url_func):
+    if is_offline_build():
+        return
+    triton_cache_path = get_triton_cache_path()
+    if variable in os.environ:
+        return
+    base_dir = os.path.dirname(__file__)
+    system = platform.system()
+    try:
+        arch = {"x86_64": "64", "arm64": "aarch64", "aarch64": "aarch64"}[platform.machine()]
+    except KeyError:
+        arch = platform.machine()
+    supported = {"Linux": "linux", "Darwin": "linux"}
+    url = url_func(supported[system], arch, version)
+    # tmp_path = os.path.join(triton_cache_path, "npu", name)  # path to cache the download
+    tmp_path = os.path.join(triton_cache_path, "npu")
+    dst_path = os.path.join(base_dir, "..", "..", "backend", "npu", dst_path)  # final binary path
+
+    platform_name = "sbsa-linux" if arch == "aarch64" else "x86_64-linux"
+    src_path = src_path(platform_name, version) if callable(src_path) else src_path
+    src_path = os.path.join(tmp_path, src_path)
+    download = not os.path.exists(src_path)
+
+    if os.path.exists(dst_path) and system == "Linux" and shutil.which(dst_path) is not None:
+        curr_version = subprocess.check_output([dst_path, "--version"]).decode("utf-8").strip()
+        curr_version = re.search(r"V([.|\d]+)", curr_version).group(1)
+        download = download or curr_version != version
+    if download:
+        print(f'downloading and extracting {url} ...')
+        wget_url(url)
+        # file = tarfile.open(fileobj=wget_url(url), mode="r|*")
+        # file.extractall(path=tmp_path)
+    os.makedirs(os.path.split(dst_path)[0], exist_ok=True)
+    print(f'copy {src_path} to {dst_path} ...')
+    if os.path.isdir(src_path):
+        shutil.copytree(src_path, dst_path, dirs_exist_ok=True)
+    else:
+        shutil.copy(src_path, dst_path)
+
 # ---- cmake extension ----
 
 
@@ -447,8 +493,8 @@ class CMakeBuild(build_ext):
             "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=" + extdir, "-DTRITON_BUILD_TUTORIALS=OFF",
             "-DTRITON_BUILD_PYTHON_MODULE=ON", "-DPython3_EXECUTABLE:FILEPATH=" + sys.executable,
             "-DCMAKE_VERBOSE_MAKEFILE:BOOL=ON", "-DPYTHON_INCLUDE_DIRS=" + python_include_dir,
-            "-DTRITON_CODEGEN_BACKENDS=" + ';'.join([b.name for b in backends if not b.is_external]),
-            "-DTRITON_PLUGIN_DIRS=" + ';'.join([b.src_dir for b in backends if b.is_external])
+            "-DTRITON_CODEGEN_BACKENDS=" + ';'.join([b.name for b in BackendInstaller.backends if not b.is_external]),
+            "-DTRITON_PLUGIN_DIRS=" + ';'.join([b.src_dir for b in BackendInstaller.backends if b.is_external])
         ]
         if lit_dir is not None:
             cmake_args.append("-DLLVM_EXTERNAL_LIT=" + lit_dir)
@@ -516,133 +562,93 @@ class CMakeBuild(build_ext):
         subprocess.check_call(["cmake", "--build", ".", "--target", "mlir-doc"], cwd=cmake_dir)
 
 
-nvidia_version_path = os.path.join(get_base_dir(), "cmake", "nvidia-toolchain-version.json")
-with open(nvidia_version_path, "r") as nvidia_version_file:
-    # parse this json file to get the version of the nvidia toolchain
-    NVIDIA_TOOLCHAIN_VERSION = json.load(nvidia_version_file)
+def copy_3rdparty_dependencies():
+    nvidia_version_path = os.path.join(get_base_dir(), "cmake", "nvidia-toolchain-version.json")
+    with open(nvidia_version_path, "r") as nvidia_version_file:
+        # parse this json file to get the version of the nvidia toolchain
+        NVIDIA_TOOLCHAIN_VERSION = json.load(nvidia_version_file)
 
-npu_version_path = os.path.join(os.getenv("TRITON_PLUGIN_DIRS"), "backend", "npu", "npu-toolchain-version.json")
-with open(npu_version_path, "r") as npu_version_file:
-    # parse this json file to get the version of the npu toolchain
-    NPU_TOOLCHAIN_VERSION = json.load(npu_version_file)
+    npu_version_path = os.path.join(os.getenv("TRITON_PLUGIN_DIRS"), "backend", "npu", "npu-toolchain-version.json")
+    with open(npu_version_path, "r") as npu_version_file:
+        # parse this json file to get the version of the npu toolchain
+        NPU_TOOLCHAIN_VERSION = json.load(npu_version_file)
 
-def get_platform_dependent_src_path(subdir):
-    return lambda platform, version: (
-        (lambda version_major, version_minor1, version_minor2, : f"targets/{platform}/{subdir}"
-         if int(version_major) >= 12 and int(version_minor1) >= 5 else subdir)(*version.split('.')))
+    def get_platform_dependent_src_path(subdir):
+        return lambda platform, version: (
+            (lambda version_major, version_minor1, version_minor2, : f"targets/{platform}/{subdir}"
+             if int(version_major) >= 12 and int(version_minor1) >= 5 else subdir)(*version.split('.')))
 
 
-download_and_copy(
-    name="ptxas", src_path="bin/ptxas", dst_path="bin/ptxas", variable="TRITON_PTXAS_PATH",
-    version=NVIDIA_TOOLCHAIN_VERSION["ptxas"], url_func=lambda system, arch, version:
-    ((lambda version_major, version_minor1, version_minor2:
-      f"https://anaconda.org/nvidia/cuda-nvcc-tools/{version}/download/{system}-{arch}/cuda-nvcc-tools-{version}-0.tar.bz2"
-      if int(version_major) >= 12 and int(version_minor1) >= 5 else
-      f"https://anaconda.org/nvidia/cuda-nvcc/{version}/download/{system}-{arch}/cuda-nvcc-{version}-0.tar.bz2")
-     (*version.split('.'))))
-download_and_copy(
-    name="cuobjdump",
-    src_path="bin/cuobjdump",
-    dst_path="bin/cuobjdump",
-    variable="TRITON_CUOBJDUMP_PATH",
-    version=NVIDIA_TOOLCHAIN_VERSION["cuobjdump"],
-    url_func=lambda system, arch, version:
-    f"https://anaconda.org/nvidia/cuda-cuobjdump/{version}/download/{system}-{arch}/cuda-cuobjdump-{version}-0.tar.bz2",
-)
-download_and_copy(
-    name="nvdisasm",
-    src_path="bin/nvdisasm",
-    dst_path="bin/nvdisasm",
-    variable="TRITON_NVDISASM_PATH",
-    version=NVIDIA_TOOLCHAIN_VERSION["nvdisasm"],
-    url_func=lambda system, arch, version:
-    f"https://anaconda.org/nvidia/cuda-nvdisasm/{version}/download/{system}-{arch}/cuda-nvdisasm-{version}-0.tar.bz2",
-)
-download_and_copy(
-    name="cudacrt", src_path=get_platform_dependent_src_path("include"), dst_path="include",
-    variable="TRITON_CUDACRT_PATH", version=NVIDIA_TOOLCHAIN_VERSION["cudacrt"], url_func=lambda system, arch, version:
-    ((lambda version_major, version_minor1, version_minor2:
-      f"https://anaconda.org/nvidia/cuda-crt-dev_{system}-{arch}/{version}/download/noarch/cuda-crt-dev_{system}-{arch}-{version}-0.tar.bz2"
-      if int(version_major) >= 12 and int(version_minor1) >= 5 else
-      f"https://anaconda.org/nvidia/cuda-nvcc/{version}/download/{system}-{arch}/cuda-nvcc-{version}-0.tar.bz2")
-     (*version.split('.'))))
-download_and_copy(
-    name="cudart", src_path=get_platform_dependent_src_path("include"), dst_path="include",
-    variable="TRITON_CUDART_PATH", version=NVIDIA_TOOLCHAIN_VERSION["cudart"], url_func=lambda system, arch, version:
-    ((lambda version_major, version_minor1, version_minor2:
-      f"https://anaconda.org/nvidia/cuda-cudart-dev_{system}-{arch}/{version}/download/noarch/cuda-cudart-dev_{system}-{arch}-{version}-0.tar.bz2"
-      if int(version_major) >= 12 and int(version_minor1) >= 5 else
-      f"https://anaconda.org/nvidia/cuda-cudart-dev/{version}/download/{system}-{arch}/cuda-cudart-dev-{version}-0.tar.bz2"
-      )(*version.split('.'))))
-download_and_copy(
-    name="cupti", src_path=get_platform_dependent_src_path("include"), dst_path="include",
-    variable="TRITON_CUPTI_INCLUDE_PATH", version=NVIDIA_TOOLCHAIN_VERSION["cupti"],
-    url_func=lambda system, arch, version:
-    ((lambda version_major, version_minor1, version_minor2:
-      f"https://anaconda.org/nvidia/cuda-cupti-dev/{version}/download/{system}-{arch}/cuda-cupti-dev-{version}-0.tar.bz2"
-      if int(version_major) >= 12 and int(version_minor1) >= 5 else
-      f"https://anaconda.org/nvidia/cuda-cupti/{version}/download/{system}-{arch}/cuda-cupti-{version}-0.tar.bz2")
-     (*version.split('.'))))
-download_and_copy(
-    name="cupti", src_path=get_platform_dependent_src_path("lib"), dst_path="lib/cupti",
-    variable="TRITON_CUPTI_LIB_PATH", version=NVIDIA_TOOLCHAIN_VERSION["cupti"], url_func=lambda system, arch, version:
-    ((lambda version_major, version_minor1, version_minor2:
-      f"https://anaconda.org/nvidia/cuda-cupti-dev/{version}/download/{system}-{arch}/cuda-cupti-dev-{version}-0.tar.bz2"
-      if int(version_major) >= 12 and int(version_minor1) >= 5 else
-      f"https://anaconda.org/nvidia/cuda-cupti/{version}/download/{system}-{arch}/cuda-cupti-{version}-0.tar.bz2")
-     (*version.split('.'))))
+    download_and_copy(
+        name="ptxas", src_path="bin/ptxas", dst_path="bin/ptxas", variable="TRITON_PTXAS_PATH",
+        version=NVIDIA_TOOLCHAIN_VERSION["ptxas"], url_func=lambda system, arch, version:
+        ((lambda version_major, version_minor1, version_minor2:
+          f"https://anaconda.org/nvidia/cuda-nvcc-tools/{version}/download/{system}-{arch}/cuda-nvcc-tools-{version}-0.tar.bz2"
+          if int(version_major) >= 12 and int(version_minor1) >= 5 else
+          f"https://anaconda.org/nvidia/cuda-nvcc/{version}/download/{system}-{arch}/cuda-nvcc-{version}-0.tar.bz2")
+         (*version.split('.'))))
+    download_and_copy(
+        name="cuobjdump",
+        src_path="bin/cuobjdump",
+        dst_path="bin/cuobjdump",
+        variable="TRITON_CUOBJDUMP_PATH",
+        version=NVIDIA_TOOLCHAIN_VERSION["cuobjdump"],
+        url_func=lambda system, arch, version:
+        f"https://anaconda.org/nvidia/cuda-cuobjdump/{version}/download/{system}-{arch}/cuda-cuobjdump-{version}-0.tar.bz2",
+    )
+    download_and_copy(
+        name="nvdisasm",
+        src_path="bin/nvdisasm",
+        dst_path="bin/nvdisasm",
+        variable="TRITON_NVDISASM_PATH",
+        version=NVIDIA_TOOLCHAIN_VERSION["nvdisasm"],
+        url_func=lambda system, arch, version:
+        f"https://anaconda.org/nvidia/cuda-nvdisasm/{version}/download/{system}-{arch}/cuda-nvdisasm-{version}-0.tar.bz2",
+    )
+    download_and_copy(
+        name="cudacrt", src_path=get_platform_dependent_src_path("include"), dst_path="include",
+        variable="TRITON_CUDACRT_PATH", version=NVIDIA_TOOLCHAIN_VERSION["cudacrt"], url_func=lambda system, arch, version:
+        ((lambda version_major, version_minor1, version_minor2:
+          f"https://anaconda.org/nvidia/cuda-crt-dev_{system}-{arch}/{version}/download/noarch/cuda-crt-dev_{system}-{arch}-{version}-0.tar.bz2"
+          if int(version_major) >= 12 and int(version_minor1) >= 5 else
+          f"https://anaconda.org/nvidia/cuda-nvcc/{version}/download/{system}-{arch}/cuda-nvcc-{version}-0.tar.bz2")
+         (*version.split('.'))))
+    download_and_copy(
+        name="cudart", src_path=get_platform_dependent_src_path("include"), dst_path="include",
+        variable="TRITON_CUDART_PATH", version=NVIDIA_TOOLCHAIN_VERSION["cudart"], url_func=lambda system, arch, version:
+        ((lambda version_major, version_minor1, version_minor2:
+          f"https://anaconda.org/nvidia/cuda-cudart-dev_{system}-{arch}/{version}/download/noarch/cuda-cudart-dev_{system}-{arch}-{version}-0.tar.bz2"
+          if int(version_major) >= 12 and int(version_minor1) >= 5 else
+          f"https://anaconda.org/nvidia/cuda-cudart-dev/{version}/download/{system}-{arch}/cuda-cudart-dev-{version}-0.tar.bz2"
+          )(*version.split('.'))))
+    download_and_copy(
+        name="cupti", src_path=get_platform_dependent_src_path("include"), dst_path="include",
+        variable="TRITON_CUPTI_INCLUDE_PATH", version=NVIDIA_TOOLCHAIN_VERSION["cupti"],
+        url_func=lambda system, arch, version:
+        ((lambda version_major, version_minor1, version_minor2:
+          f"https://anaconda.org/nvidia/cuda-cupti-dev/{version}/download/{system}-{arch}/cuda-cupti-dev-{version}-0.tar.bz2"
+          if int(version_major) >= 12 and int(version_minor1) >= 5 else
+          f"https://anaconda.org/nvidia/cuda-cupti/{version}/download/{system}-{arch}/cuda-cupti-{version}-0.tar.bz2")
+         (*version.split('.'))))
+    download_and_copy(
+        name="cupti", src_path=get_platform_dependent_src_path("lib"), dst_path="lib/cupti",
+        variable="TRITON_CUPTI_LIB_PATH", version=NVIDIA_TOOLCHAIN_VERSION["cupti"], url_func=lambda system, arch, version:
+        ((lambda version_major, version_minor1, version_minor2:
+          f"https://anaconda.org/nvidia/cuda-cupti-dev/{version}/download/{system}-{arch}/cuda-cupti-dev-{version}-0.tar.bz2"
+          if int(version_major) >= 12 and int(version_minor1) >= 5 else
+          f"https://anaconda.org/nvidia/cuda-cupti/{version}/download/{system}-{arch}/cuda-cupti-{version}-0.tar.bz2")
+         (*version.split('.'))))
 
-# npu_compiler
-def download_and_copy_npu(name, src_path, dst_path, variable, version, url_func):
-    if is_offline_build():
-        return
-    triton_cache_path = get_triton_cache_path()
-    if variable in os.environ:
-        return
-    base_dir = os.path.dirname(__file__)
-    system = platform.system()
-    try:
-        arch = {"x86_64": "64", "arm64": "aarch64", "aarch64": "aarch64"}[platform.machine()]
-    except KeyError:
-        arch = platform.machine()
-    supported = {"Linux": "linux", "Darwin": "linux"}
-    url = url_func(supported[system], arch, version)
-    # tmp_path = os.path.join(triton_cache_path, "npu", name)  # path to cache the download
-    tmp_path = os.path.join(triton_cache_path, "npu")
-    dst_path = os.path.join(base_dir, "..", "..", "backend", "npu", dst_path)  # final binary path
 
-    platform_name = "sbsa-linux" if arch == "aarch64" else "x86_64-linux"
-    src_path = src_path(platform_name, version) if callable(src_path) else src_path
-    src_path = os.path.join(tmp_path, src_path)
-    download = not os.path.exists(src_path)
-
-    if os.path.exists(dst_path) and system == "Linux" and shutil.which(dst_path) is not None:
-        curr_version = subprocess.check_output([dst_path, "--version"]).decode("utf-8").strip()
-        curr_version = re.search(r"V([.|\d]+)", curr_version).group(1)
-        download = download or curr_version != version
-    if download:
-        print(f'downloading and extracting {url} ...')
-        wget_url(url)
-        # file = tarfile.open(fileobj=wget_url(url), mode="r|*")
-        # file.extractall(path=tmp_path)
-    os.makedirs(os.path.split(dst_path)[0], exist_ok=True)
-    print(f'copy {src_path} to {dst_path} ...')
-    if os.path.isdir(src_path):
-        shutil.copytree(src_path, dst_path, dirs_exist_ok=True)
-    else:
-        shutil.copy(src_path, dst_path)
-
-download_and_copy_npu(
-    name="npu_compiler", src_path="npu_compiler", dst_path="npu_compiler", variable="TRITON_NPU_COMPILER_PATH",
-    version=NPU_TOOLCHAIN_VERSION["npu_compiler"], url_func=lambda system, arch, version:
-    ((lambda version_major, version_minor1, version_minor2:
-      f"https://gitee.com/ascend/triton-ascend/releases/download/{version_major}.{version_minor1}.{version_minor2}/npu_compiler_{platform.machine()}.tar.gz")
-     (*version.split('.'))))
-
-backends = [*BackendInstaller.copy(["nvidia", "amd"]), *BackendInstaller.copy_externals()]
+    download_and_copy_npu(
+        name="npu_compiler", src_path="npu_compiler", dst_path="npu_compiler", variable="TRITON_NPU_COMPILER_PATH",
+        version=NPU_TOOLCHAIN_VERSION["npu_compiler"], url_func=lambda system, arch, version:
+        ((lambda version_major, version_minor1, version_minor2:
+          f"https://gitee.com/ascend/triton-ascend/releases/download/{version_major}.{version_minor1}.{version_minor2}/npu_compiler_{platform.machine()}.tar.gz")
+         (*version.split('.'))))
 
 def add_link_to_backends():
-    for backend in backends:
+    for backend in BackendInstaller.backends:
         if os.path.islink(backend.install_dir):
             os.unlink(backend.install_dir)
         if os.path.exists(backend.install_dir):
@@ -706,17 +712,16 @@ class plugin_egginfo(egg_info):
         add_links()
         egg_info.run(self)
 
-
-package_data = {
-    "triton/tools": ["compile.h", "compile.c"], **{f"triton/backends/{b.name}": b.package_data
-                                                   for b in backends}, "triton/language/extra": sum(
-        (b.language_package_data for b in backends), [])
-}
+def get_package_data():
+    return {"triton/tools": ["compile.h", "compile.c"], **{f"triton/backends/{b.name}": b.package_data
+                                                   for b in BackendInstaller.backends}, "triton/language/extra": sum(
+        (b.language_package_data for b in BackendInstaller.backends), [])
+    }
 
 
 def get_language_extra_packages():
     packages = []
-    for backend in backends:
+    for backend in BackendInstaller.backends:
         if backend.language_dir is None:
             continue
 
@@ -746,7 +751,8 @@ def get_packages():
         "triton/backends",
         "triton/tools",
     ]
-    packages += [f'triton/backends/{backend.name}' for backend in backends]
+    BackendInstaller.init_backends()
+    packages += [f'triton/backends/{backend.name}' for backend in BackendInstaller.backends]
     packages += get_language_extra_packages()
     if check_env_flag("TRITON_BUILD_PROTON", "ON"):  # Default ON
         packages += ["triton/profiler"]
@@ -799,7 +805,7 @@ setup(
     long_description="",
     packages=get_packages(),
     entry_points=get_entry_points(),
-    package_data=package_data,
+    package_data=get_package_data(),
     include_package_data=True,
     ext_modules=[CMakeExtension("triton", "triton/_C/")],
     cmdclass={
