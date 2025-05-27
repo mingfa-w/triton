@@ -622,7 +622,6 @@ def download_and_copy_npu(name, src_path, dst_path, variable, version, url_func)
         download = download or curr_version != version
     if download:
         print(f'downloading and extracting {url} ...')
-        wget_url(url)
         # file = tarfile.open(fileobj=wget_url(url), mode="r|*")
         # file.extractall(path=tmp_path)
     os.makedirs(os.path.split(dst_path)[0], exist_ok=True)
@@ -631,13 +630,6 @@ def download_and_copy_npu(name, src_path, dst_path, variable, version, url_func)
         shutil.copytree(src_path, dst_path, dirs_exist_ok=True)
     else:
         shutil.copy(src_path, dst_path)
-
-download_and_copy_npu(
-    name="npu_compiler", src_path="npu_compiler", dst_path="npu_compiler", variable="TRITON_NPU_COMPILER_PATH",
-    version=NPU_TOOLCHAIN_VERSION["npu_compiler"], url_func=lambda system, arch, version:
-    ((lambda version_major, version_minor1, version_minor2:
-      f"https://gitee.com/ascend/triton-ascend/releases/download/{version_major}.{version_minor1}.{version_minor2}/npu_compiler_{platform.machine()}.tar.gz")
-     (*version.split('.'))))
 
 backends = [*BackendInstaller.copy(["nvidia", "amd"]), *BackendInstaller.copy_externals()]
 
