@@ -596,25 +596,23 @@ download_and_copy(
 def download_and_copy_npu(name, src_path, dst_path, variable, version, url_func):
     if is_offline_build():
         return
-    triton_cache_path = get_triton_cache_path() # /root/.triton
+    triton_cache_path = get_triton_cache_path()
     if variable in os.environ:
         return
-    base_dir = os.path.dirname(__file__)    # /home/fengrui/code/triton-x/triton/python
-    system = platform.system()  # Linux
+    base_dir = os.path.dirname(__file__)
+    system = platform.system()
     try:
-        arch = {"x86_64": "64", "arm64": "aarch64", "aarch64": "aarch64"}[platform.machine()] # x86_64
+        arch = {"x86_64": "64", "arm64": "aarch64", "aarch64": "aarch64"}[platform.machine()]
     except KeyError:
         arch = platform.machine()
     supported = {"Linux": "linux", "Darwin": "linux"}
-    url = url_func(supported[system], arch, version) # https://gitee.com/ascend/triton-ascend/releases/download/0.0.3/npu_compiler_x86_64.tar.gz
-    # tmp_path = os.path.join(triton_cache_path, "npu", name)  # path to cache the download
-    tmp_path = os.path.join(triton_cache_path, "npu")   # /root/.triton/npu
-    dst_path = os.path.join(base_dir, "..", "..", "backend", "npu", dst_path)  # final binary path
-    # /home/fengrui/code/triton-x/triton/python/../../backend/npu/npu_compiler
+    url = url_func(supported[system], arch, version)
+    tmp_path = os.path.join(triton_cache_path, "npu")
+    dst_path = os.path.join(base_dir, "..", "..", "backend", "npu", dst_path)
 
-    platform_name = "sbsa-linux" if arch == "aarch64" else "x86_64-linux"   # x86_64-linux
+    platform_name = "sbsa-linux" if arch == "aarch64" else "x86_64-linux"
     src_path = src_path(platform_name, version) if callable(src_path) else src_path
-    src_path = os.path.join(tmp_path, src_path) # /root/.triton/npu/npu_compiler
+    src_path = os.path.join(tmp_path, src_path)
     download = not os.path.exists(src_path)
 
     if os.path.exists(dst_path) and system == "Linux" and shutil.which(dst_path) is not None:
@@ -623,8 +621,8 @@ def download_and_copy_npu(name, src_path, dst_path, variable, version, url_func)
         download = download or curr_version != version
     if download:
         print(f'downloading and extracting {url} ...')
-        import pdb; pdb.set_trace()
-        wget_url(url)
+        # 不再支持此处下载bisheng包
+        # wget_url(url)
         # file = tarfile.open(fileobj=wget_url(url), mode="r|*")
         # file.extractall(path=tmp_path)
     os.makedirs(os.path.split(dst_path)[0], exist_ok=True)
@@ -638,9 +636,7 @@ def download_and_copy_npu(name, src_path, dst_path, variable, version, url_func)
 download_and_copy_npu(
     name="npu_compiler", src_path="npu_compiler", dst_path="npu_compiler", variable="TRITON_NPU_COMPILER_PATH",
     version=NPU_TOOLCHAIN_VERSION["npu_compiler"], url_func=lambda system, arch, version:
-    ((lambda version_major, version_minor1, version_minor2:
-      f"https://gitee.com/ascend/triton-ascend/releases/download/{version_major}.{version_minor1}.{version_minor2}/npu_compiler_{platform.machine()}.tar.gz")
-     (*version.split('.'))))
+    f"https://tosv.byted.org/obj/aicompiler/npu/common/npu_compiler/npu_compiler_{version}_{platform.machine()}.tar.gz")
 
 backends = [*BackendInstaller.copy(["nvidia", "amd"]), *BackendInstaller.copy_externals()]
 
