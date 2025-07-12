@@ -16,7 +16,7 @@ from distutils.command.clean import clean
 from pathlib import Path
 from typing import List, NamedTuple, Optional
 
-from setuptools import Extension, setup
+from setuptools import Extension, Command, setup
 from setuptools.command.build_ext import build_ext
 from setuptools.command.build_py import build_py
 from dataclasses import dataclass
@@ -375,6 +375,16 @@ class CMakeExtension(Extension):
         self.path = path
 
 
+class CopyResourcesCommand(Command):
+    user_options = []
+    def initialize_options(self): pass
+    def finalize_options(self): pass
+
+    def run(self):
+        download_and_copy_ascend()
+        download_and_copy_nvidia()
+
+
 class CMakeBuild(build_ext):
 
     user_options = build_ext.user_options + \
@@ -516,81 +526,76 @@ class CMakeBuild(build_ext):
         subprocess.check_call(["cmake", "--build", ".", "--target", "mlir-doc"], cwd=cmake_dir)
 
 
-nvidia_version_path = os.path.join(get_base_dir(), "cmake", "nvidia-toolchain-version.json")
-with open(nvidia_version_path, "r") as nvidia_version_file:
-    # parse this json file to get the version of the nvidia toolchain
-    NVIDIA_TOOLCHAIN_VERSION = json.load(nvidia_version_file)
-
-npu_version_path = os.path.join(os.getenv("TRITON_PLUGIN_DIRS"), "backend", "npu", "npu-toolchain-version.json")
-with open(npu_version_path, "r") as npu_version_file:
-    # parse this json file to get the version of the npu toolchain
-    NPU_TOOLCHAIN_VERSION = json.load(npu_version_file)
-
 def get_platform_dependent_src_path(subdir):
     return lambda platform, version: (
         (lambda version_major, version_minor1, version_minor2, : f"targets/{platform}/{subdir}"
          if int(version_major) >= 12 and int(version_minor1) >= 5 else subdir)(*version.split('.')))
 
+def download_and_copy_nvidia():
+    nvidia_version_path = os.path.join(get_base_dir(), "cmake", "nvidia-toolchain-version.json")
+    with open(nvidia_version_path, "r") as nvidia_version_file:
+        # parse this json file to get the version of the nvidia toolchain
+        NVIDIA_TOOLCHAIN_VERSION = json.load(nvidia_version_file)
+    download_and_copy(
+        name="ptxas", src_path="bin/ptxas", dst_path="bin/ptxas", variable="TRITON_PTXAS_PATH",
+        version=NVIDIA_TOOLCHAIN_VERSION["ptxas"], url_func=lambda system, arch, version:
+        ((lambda version_major, version_minor1, version_minor2:
+        f"https://anaconda.org/nvidia/cuda-nvcc-tools/{version}/download/{system}-{arch}/cuda-nvcc-tools-{version}-0.tar.bz2"
+        if int(version_major) >= 12 and int(version_minor1) >= 5 else
+        f"https://anaconda.org/nvidia/cuda-nvcc/{version}/download/{system}-{arch}/cuda-nvcc-{version}-0.tar.bz2")
+        (*version.split('.'))))
+    download_and_copy(
+        name="cuobjdump",
+        src_path="bin/cuobjdump",
+        dst_path="bin/cuobjdump",
+        variable="TRITON_CUOBJDUMP_PATH",
+        version=NVIDIA_TOOLCHAIN_VERSION["cuobjdump"],
+        url_func=lambda system, arch, version:
+        f"https://anaconda.org/nvidia/cuda-cuobjdump/{version}/download/{system}-{arch}/cuda-cuobjdump-{version}-0.tar.bz2",
+    )
+    download_and_copy(
+        name="nvdisasm",
+        src_path="bin/nvdisasm",
+        dst_path="bin/nvdisasm",
+        variable="TRITON_NVDISASM_PATH",
+        version=NVIDIA_TOOLCHAIN_VERSION["nvdisasm"],
+        url_func=lambda system, arch, version:
+        f"https://anaconda.org/nvidia/cuda-nvdisasm/{version}/download/{system}-{arch}/cuda-nvdisasm-{version}-0.tar.bz2",
+    )
+    download_and_copy(
+        name="cudacrt", src_path=get_platform_dependent_src_path("include"), dst_path="include",
+        variable="TRITON_CUDACRT_PATH", version=NVIDIA_TOOLCHAIN_VERSION["cudacrt"], url_func=lambda system, arch, version:
+        ((lambda version_major, version_minor1, version_minor2:
+        f"https://anaconda.org/nvidia/cuda-crt-dev_{system}-{arch}/{version}/download/noarch/cuda-crt-dev_{system}-{arch}-{version}-0.tar.bz2"
+        if int(version_major) >= 12 and int(version_minor1) >= 5 else
+        f"https://anaconda.org/nvidia/cuda-nvcc/{version}/download/{system}-{arch}/cuda-nvcc-{version}-0.tar.bz2")
+        (*version.split('.'))))
+    download_and_copy(
+        name="cudart", src_path=get_platform_dependent_src_path("include"), dst_path="include",
+        variable="TRITON_CUDART_PATH", version=NVIDIA_TOOLCHAIN_VERSION["cudart"], url_func=lambda system, arch, version:
+        ((lambda version_major, version_minor1, version_minor2:
+        f"https://anaconda.org/nvidia/cuda-cudart-dev_{system}-{arch}/{version}/download/noarch/cuda-cudart-dev_{system}-{arch}-{version}-0.tar.bz2"
+        if int(version_major) >= 12 and int(version_minor1) >= 5 else
+        f"https://anaconda.org/nvidia/cuda-cudart-dev/{version}/download/{system}-{arch}/cuda-cudart-dev-{version}-0.tar.bz2"
+        )(*version.split('.'))))
+    download_and_copy(
+        name="cupti", src_path=get_platform_dependent_src_path("include"), dst_path="include",
+        variable="TRITON_CUPTI_INCLUDE_PATH", version=NVIDIA_TOOLCHAIN_VERSION["cupti"],
+        url_func=lambda system, arch, version:
+        ((lambda version_major, version_minor1, version_minor2:
+        f"https://anaconda.org/nvidia/cuda-cupti-dev/{version}/download/{system}-{arch}/cuda-cupti-dev-{version}-0.tar.bz2"
+        if int(version_major) >= 12 and int(version_minor1) >= 5 else
+        f"https://anaconda.org/nvidia/cuda-cupti/{version}/download/{system}-{arch}/cuda-cupti-{version}-0.tar.bz2")
+        (*version.split('.'))))
+    download_and_copy(
+        name="cupti", src_path=get_platform_dependent_src_path("lib"), dst_path="lib/cupti",
+        variable="TRITON_CUPTI_LIB_PATH", version=NVIDIA_TOOLCHAIN_VERSION["cupti"], url_func=lambda system, arch, version:
+        ((lambda version_major, version_minor1, version_minor2:
+        f"https://anaconda.org/nvidia/cuda-cupti-dev/{version}/download/{system}-{arch}/cuda-cupti-dev-{version}-0.tar.bz2"
+        if int(version_major) >= 12 and int(version_minor1) >= 5 else
+        f"https://anaconda.org/nvidia/cuda-cupti/{version}/download/{system}-{arch}/cuda-cupti-{version}-0.tar.bz2")
+        (*version.split('.'))))
 
-download_and_copy(
-    name="ptxas", src_path="bin/ptxas", dst_path="bin/ptxas", variable="TRITON_PTXAS_PATH",
-    version=NVIDIA_TOOLCHAIN_VERSION["ptxas"], url_func=lambda system, arch, version:
-    ((lambda version_major, version_minor1, version_minor2:
-      f"https://anaconda.org/nvidia/cuda-nvcc-tools/{version}/download/{system}-{arch}/cuda-nvcc-tools-{version}-0.tar.bz2"
-      if int(version_major) >= 12 and int(version_minor1) >= 5 else
-      f"https://anaconda.org/nvidia/cuda-nvcc/{version}/download/{system}-{arch}/cuda-nvcc-{version}-0.tar.bz2")
-     (*version.split('.'))))
-download_and_copy(
-    name="cuobjdump",
-    src_path="bin/cuobjdump",
-    dst_path="bin/cuobjdump",
-    variable="TRITON_CUOBJDUMP_PATH",
-    version=NVIDIA_TOOLCHAIN_VERSION["cuobjdump"],
-    url_func=lambda system, arch, version:
-    f"https://anaconda.org/nvidia/cuda-cuobjdump/{version}/download/{system}-{arch}/cuda-cuobjdump-{version}-0.tar.bz2",
-)
-download_and_copy(
-    name="nvdisasm",
-    src_path="bin/nvdisasm",
-    dst_path="bin/nvdisasm",
-    variable="TRITON_NVDISASM_PATH",
-    version=NVIDIA_TOOLCHAIN_VERSION["nvdisasm"],
-    url_func=lambda system, arch, version:
-    f"https://anaconda.org/nvidia/cuda-nvdisasm/{version}/download/{system}-{arch}/cuda-nvdisasm-{version}-0.tar.bz2",
-)
-download_and_copy(
-    name="cudacrt", src_path=get_platform_dependent_src_path("include"), dst_path="include",
-    variable="TRITON_CUDACRT_PATH", version=NVIDIA_TOOLCHAIN_VERSION["cudacrt"], url_func=lambda system, arch, version:
-    ((lambda version_major, version_minor1, version_minor2:
-      f"https://anaconda.org/nvidia/cuda-crt-dev_{system}-{arch}/{version}/download/noarch/cuda-crt-dev_{system}-{arch}-{version}-0.tar.bz2"
-      if int(version_major) >= 12 and int(version_minor1) >= 5 else
-      f"https://anaconda.org/nvidia/cuda-nvcc/{version}/download/{system}-{arch}/cuda-nvcc-{version}-0.tar.bz2")
-     (*version.split('.'))))
-download_and_copy(
-    name="cudart", src_path=get_platform_dependent_src_path("include"), dst_path="include",
-    variable="TRITON_CUDART_PATH", version=NVIDIA_TOOLCHAIN_VERSION["cudart"], url_func=lambda system, arch, version:
-    ((lambda version_major, version_minor1, version_minor2:
-      f"https://anaconda.org/nvidia/cuda-cudart-dev_{system}-{arch}/{version}/download/noarch/cuda-cudart-dev_{system}-{arch}-{version}-0.tar.bz2"
-      if int(version_major) >= 12 and int(version_minor1) >= 5 else
-      f"https://anaconda.org/nvidia/cuda-cudart-dev/{version}/download/{system}-{arch}/cuda-cudart-dev-{version}-0.tar.bz2"
-      )(*version.split('.'))))
-download_and_copy(
-    name="cupti", src_path=get_platform_dependent_src_path("include"), dst_path="include",
-    variable="TRITON_CUPTI_INCLUDE_PATH", version=NVIDIA_TOOLCHAIN_VERSION["cupti"],
-    url_func=lambda system, arch, version:
-    ((lambda version_major, version_minor1, version_minor2:
-      f"https://anaconda.org/nvidia/cuda-cupti-dev/{version}/download/{system}-{arch}/cuda-cupti-dev-{version}-0.tar.bz2"
-      if int(version_major) >= 12 and int(version_minor1) >= 5 else
-      f"https://anaconda.org/nvidia/cuda-cupti/{version}/download/{system}-{arch}/cuda-cupti-{version}-0.tar.bz2")
-     (*version.split('.'))))
-download_and_copy(
-    name="cupti", src_path=get_platform_dependent_src_path("lib"), dst_path="lib/cupti",
-    variable="TRITON_CUPTI_LIB_PATH", version=NVIDIA_TOOLCHAIN_VERSION["cupti"], url_func=lambda system, arch, version:
-    ((lambda version_major, version_minor1, version_minor2:
-      f"https://anaconda.org/nvidia/cuda-cupti-dev/{version}/download/{system}-{arch}/cuda-cupti-dev-{version}-0.tar.bz2"
-      if int(version_major) >= 12 and int(version_minor1) >= 5 else
-      f"https://anaconda.org/nvidia/cuda-cupti/{version}/download/{system}-{arch}/cuda-cupti-{version}-0.tar.bz2")
-     (*version.split('.'))))
 
 # npu_compiler
 def download_and_copy_npu(name, src_path, dst_path, variable, version, url_func):
@@ -632,11 +637,16 @@ def download_and_copy_npu(name, src_path, dst_path, variable, version, url_func)
     else:
         shutil.copy(src_path, dst_path)
 
-# 从cann包中获取，若获取不到再which
-download_and_copy_npu(
-    name="npu_compiler", src_path="npu_compiler", dst_path="npu_compiler", variable="TRITON_NPU_COMPILER_PATH",
-    version=NPU_TOOLCHAIN_VERSION["npu_compiler"], url_func=lambda system, arch, version:
-    f"https://tosv.byted.org/obj/aicompiler/npu/common/npu_compiler/npu_compiler_{version}_{platform.machine()}.tar.gz")
+
+def download_and_copy_ascend():
+    npu_version_path = os.path.join(os.getenv("TRITON_PLUGIN_DIRS"), "backend", "npu", "npu-toolchain-version.json")
+    with open(npu_version_path, "r") as npu_version_file:
+        # parse this json file to get the version of the npu toolchain
+        NPU_TOOLCHAIN_VERSION = json.load(npu_version_file)
+    download_and_copy_npu(
+        name="npu_compiler", src_path="npu_compiler", dst_path="npu_compiler", variable="TRITON_NPU_COMPILER_PATH",
+        version=NPU_TOOLCHAIN_VERSION["npu_compiler"], url_func=lambda system, arch, version:
+        f"https://tosv.byted.org/obj/aicompiler/npu/common/npu_compiler/npu_compiler_{version}_{platform.machine()}.tar.gz")
 
 backends = [*BackendInstaller.copy(["nvidia", "amd"]), *BackendInstaller.copy_externals()]
 
@@ -688,6 +698,8 @@ class plugin_install(install):
 class plugin_develop(develop):
 
     def run(self):
+        download_and_copy_ascend()
+        download_and_copy_nvidia()
         add_links()
         develop.run(self)
 
@@ -695,6 +707,8 @@ class plugin_develop(develop):
 class plugin_bdist_wheel(bdist_wheel):
 
     def run(self):
+        download_and_copy_ascend()
+        download_and_copy_nvidia()
         add_links()
         bdist_wheel.run(self)
 
@@ -809,6 +823,7 @@ setup(
         "develop": plugin_develop,
         "bdist_wheel": plugin_bdist_wheel,
         "egg_info": plugin_egginfo,
+        "copy_resources": CopyResourcesCommand,
     },
     zip_safe=False,
     # for PyPI
