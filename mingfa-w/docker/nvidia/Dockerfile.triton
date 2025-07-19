@@ -59,7 +59,8 @@ RUN mkdir /tmp/python && cd /tmp/python && \
     ln -sf /usr/local/bin/pip3.11 /usr/local/bin/pip3
 
 # 设置sshd自启动
-RUN mkdir -p /var/run/sshd
-CMD ["/usr/sbin/sshd", "-D"]
+# RUN mkdir -p /var/run/sshd
+# CMD ["/usr/sbin/sshd", "-D"]
+ENTRYPOINT service ssh restart && bash
 WORKDIR /host
 # ENTRYPOINT ["/bin/bash"]

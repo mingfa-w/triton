@@ -31,7 +31,8 @@ do
 done
 CONTAINER_NAME=$CONTAINER_NAME.$PORT
 # docker_in_docker=" --net=host --privileged -v /var/run/docker.sock:/var/run/docker.sock -v $(which docker):/bin/docker "
-docker_in_docker=" -p $PORT:22 --privileged -v /var/run/docker.sock:/var/run/docker.sock -v $(which docker):/bin/docker "
+ipv6_add=`ip addr | grep -Po "(?<=inet6\s).+(?=/128\sscope\sglobal)"`
+docker_in_docker=" -p $ipv6_add:$PORT:22 --privileged -v /var/run/docker.sock:/var/run/docker.sock -v $(which docker):/bin/docker "
 # echo $docker_in_docker ====; exit 0
 # docker_run_flag=" --runtime=nvidia -e NVIDIA_VISIBLE_DEVICES=all --cap-add=SYS_PTRACE --security-opt seccomp=unconfined "
 docker_run_flag=" --gpus all "
