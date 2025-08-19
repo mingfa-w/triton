@@ -50,6 +50,7 @@ class CompileTimeAssertionFailure(CompilationError):
 class UnsupportedLanguageConstruct(CompilationError):
     pass
 
+
 class MLIRCompilationError(TritonError):
     def __init__(self, stage_name: Optional[str], message: Optional[str] = None):
         self.stage_name = stage_name

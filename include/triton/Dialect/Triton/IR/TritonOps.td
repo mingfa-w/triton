@@ -776,7 +776,8 @@ def TT_ScanReturnOp: TT_Op<"scan.return",
 def TT_ExternElementwiseOp : TT_Op<"extern_elementwise", [Elementwise,
                                                             SameOperandsAndResultEncoding,
                                                             SameVariadicOperandSize,
-                                                            DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]> {
+                                                            DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+                                                            ConditionallySpeculatable]> {
 
     let description = [{
         call an external function $symbol implemented in $libpath/$libname with $args
@@ -788,6 +789,12 @@ def TT_ExternElementwiseOp : TT_Op<"extern_elementwise", [Elementwise,
     let results = (outs TT_Type:$result);
 
     let assemblyFormat = "operands attr-dict `:` functional-type(operands, $result)";
+
+    let extraClassDeclaration = [{
+      // Interface method for ConditionallySpeculatable.
+      Speculation::Speculatability getSpeculatability();
+    }];
+
 }
 
 //
@@ -917,7 +924,7 @@ def TT_AssertOp : TT_Op<"assert", [MemoryEffects<[MemWrite<GlobalMemory>]>]> {
     `tt.assert` takes a condition tensor and a message string.
     If the condition is false, the message is printed, and the program is aborted.
   }];
-  let arguments = (ins TT_Tensor:$condition, StrAttr:$message);
+  let arguments = (ins AnyTypeOf<[I1, I1Tensor]>:$condition, StrAttr:$message);
   let assemblyFormat = "$condition `,` $message attr-dict `:` type($condition)";
 }
 
@@ -1275,5 +1282,25 @@ def TT_ExperimentalTensormapFenceproxyAcquireOp: TT_Op<
     }];
 }
 
+
+//
+// Annotation Op
+//
+def TT_AnnotationOp : TT_Op<"annotation", [Pure, MemoryEffects<[MemWrite]>]> {
+  let summary = "Annotate a tensor with key-value attribute pairs";
+  let description = [{
+    `tt.annotation` operation can be used to annotate a tensor with
+    key-value attribute pairs.
+
+    Example:
+    ```mlir
+    tt.annotation %target {key : val}
+    ```
+  }];
+  let arguments = (ins TT_Tensor:$src);
+  let assemblyFormat = [{
+    $src attr-dict `:` type($src)
+  }];
+}
 
 #endif // Triton_OPS

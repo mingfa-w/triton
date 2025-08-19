@@ -4,6 +4,7 @@ import json
 from .._C.libtriton import get_cache_invalidating_env_vars, ir
 from ..backends import backends
 from ..backends.compiler import GPUTarget, AttrsDescriptor
+from ..backends.ascend.compiler import AscendAttrsDescriptor
 from .. import __version__
 from ..runtime.autotuner import OutOfResources
 from ..runtime.cache import get_cache_manager, get_dump_manager, get_override_manager
@@ -16,7 +17,6 @@ from pathlib import Path
 import re
 import functools
 import os
-import sysconfig
 
 # - ^\s*tt\.func\s+ : match the start of the string, any leading whitespace, the keyword func,
 #    and any following whitespace
@@ -69,7 +69,6 @@ def _get_num_warps_from_ir_str(src: str):
 class ASTSource:
 
     def __init__(self, fn, signature, constants=None, attrs=None) -> None:
-        from triton.backends.triton_x.npu.compiler import AscendAttrsDescriptor
         self.fn = fn
         self.ext = "ttir"
         self.name = fn.__name__
@@ -154,8 +153,7 @@ def triton_key():
 
     # backend
     libtriton_hash = hashlib.sha256()
-    ext = sysconfig.get_config_var("EXT_SUFFIX").split(".")[-1]
-    with open(os.path.join(TRITON_PATH, f"_C/libtriton.{ext}"), "rb") as f:
+    with open(os.path.join(TRITON_PATH, "_C/libtriton.so"), "rb") as f:
         while True:
             chunk = f.read(1024**2)
             if not chunk:
@@ -295,10 +293,8 @@ def compile(src, target=None, options=None):
                 stage_name = "ConvertLinalgRToBinary"
             else:
                 stage_name = "MLIRCompile"
-            if hasattr(e, 'stderr') and e.stderr:
-                raise MLIRCompilationError(stage_name, e.stderr.decode('utf-8'))
-            else:
-                raise MLIRCompilationError(stage_name, str(e))
+            error_detail = e.stderr.decode('utf-8') if hasattr(e, 'stderr') and e.stderr else str(e)
+            raise MLIRCompilationError(stage_name, error_detail)
         ir_filename = f"{file_name}.{ext}"
         if (fn_override_manager is not None and (full_name := fn_override_manager.get_file(ir_filename)) is not None):
             print(f"\nOverriding kernel with file {full_name}")
@@ -352,7 +348,6 @@ class LazyDict:
 class AsmDict(dict):
 
     def __missing__(self, key):
-
         if key == "sass":
             value = get_sass(self["cubin"])
         else:

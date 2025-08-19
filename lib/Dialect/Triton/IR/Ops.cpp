@@ -1016,11 +1016,11 @@ void ExternElementwiseOp::getEffects(
                        SideEffects::DefaultResource::get());
 }
 
-// Speculation::Speculatability ExternElementwiseOp::getSpeculatability() {
-//   if (getPure())
-//     return Speculation::Speculatable;
-//   return Speculation::NotSpeculatable;
-// }
+Speculation::Speculatability ExternElementwiseOp::getSpeculatability() {
+  if (getPure())
+    return Speculation::Speculatable;
+  return Speculation::NotSpeculatable;
+}
 
 // -- ExperimentalTensormapCreateOp --
 LogicalResult ExperimentalTensormapCreateOp::verify() {

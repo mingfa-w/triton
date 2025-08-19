@@ -218,7 +218,7 @@ class CodeGenerator(ast.NodeVisitor):
 
             module_name = getattr(v, "__module__", "")
             if module_name in module_map:
-                self.gscope[k] = getattr(module_map[module_name], k)
+                self.gscope[k] = getattr(module_map[module_name], v.__name__)
             else:
                 self.gscope[k] = v
 
@@ -804,7 +804,7 @@ class CodeGenerator(ast.NodeVisitor):
     def _verify_loop_carried_variable(self, name, loop_val, live_val):
         assert _is_triton_value(loop_val), f'cannot reassign constxpr {name} in the loop'
         assert _is_triton_value(live_val), f'cannot reasign constexpr {name} in the loop'
-        assert type(loop_val) is type(live_val), f'Loop carried variable {name} changed type'
+        assert type(loop_val) == type(live_val), f'Loop carried variable {name} changed type'
         assert not _is_triton_tensor(loop_val) or loop_val.type == live_val.type, \
             f'Loop-carried variable {name} has initial type {live_val.type} '\
             f'but is re-assigned to {loop_val.type} in loop! '\
@@ -910,7 +910,8 @@ class CodeGenerator(ast.NodeVisitor):
             return
         num_stages = None
         loop_unroll_factor = None
-        if IteratorClass is language.range:
+        bind_sub_block = None
+        if IteratorClass in [language.range, language.parallel]:
             iterator = IteratorClass(*iter_args, **iter_kwargs)
             # visit iterator arguments
             # note: only `range` iterator is supported now
@@ -920,6 +921,8 @@ class CodeGenerator(ast.NodeVisitor):
             step = iterator.step
             num_stages = iterator.num_stages
             loop_unroll_factor = iterator.loop_unroll_factor
+            if (IteratorClass is language.parallel):
+                bind_sub_block = iterator.bind_sub_block
         elif IteratorClass is range:
             # visit iterator arguments
             # note: only `range` iterator is supported now
@@ -992,6 +995,8 @@ class CodeGenerator(ast.NodeVisitor):
                 for_op.set_attr("tt.num_stages", self.builder.get_int32_attr(num_stages))
             if loop_unroll_factor is not None:
                 for_op.set_attr("tt.loop_unroll_factor", self.builder.get_int32_attr(loop_unroll_factor))
+            if (bind_sub_block is not None) and bind_sub_block:
+                for_op.set_attr("bind_sub_block", self.builder.get_bool_attr(bind_sub_block))
 
             self.scf_stack.append(node)
             self.builder.set_insertion_point_to_start(for_op.get_body(0))
@@ -1075,7 +1080,7 @@ class CodeGenerator(ast.NodeVisitor):
                 generator.visit(fn.parse())
             except Exception as e:
                 # Wrap the error in the callee with the location of the call.
-                raise CompilationError(self.jit_fn.src, self.cur_node, None) from e
+                raise CompilationError(self.jit_fn.src, self.cur_node, repr(e)) from e
 
             callee_ret_type = generator.ret_type
             self.function_ret_types[fn_name] = callee_ret_type
@@ -1119,7 +1124,7 @@ class CodeGenerator(ast.NodeVisitor):
                 # itself).  But when calling a function, we raise as `from e` to
                 # preserve the traceback of the original error, which may e.g.
                 # be in core.py.
-                raise CompilationError(self.jit_fn.src, node, None) from e
+                raise CompilationError(self.jit_fn.src, node, repr(e)) from e
 
         if fn in self.builtin_namespace.values():
             args = map(_unwrap_if_constexpr, args)
