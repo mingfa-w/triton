@@ -613,7 +613,7 @@ def get_max_simd_tflops(dtype, clock_rate, device=None):
 # Patch the triton language API here because triton's __init__.py
 # import testing in the last stages.
 
-from .triton_patch.language.core import (
+from triton.language.core import (
     dot,
     gather,
     insert_slice,
@@ -626,8 +626,8 @@ from .triton_patch.language.core import (
     multibuffer,
     dtype_to_ir,
 )
-from .triton_patch.language.standard import flip, sigmoid, softmax, isfinited, finitef, rint, atan2
-from .triton_patch.language.math import (
+from triton.language.standard import flip, sigmoid, softmax, isfinited, finitef, rint, atan2
+from triton.language.math import (
     umulhi,
     exp,
     exp2,
@@ -644,7 +644,7 @@ from .triton_patch.language.math import (
     floor,
     ceil,
 )
-from .triton_patch.language.semantic import (
+from triton.language.semantic import (
     arange,
     floordiv,
     atom_red_typechecking_impl,
@@ -679,7 +679,7 @@ language.parallel = parallel
 language.compile_hint = compile_hint
 language.multibuffer = multibuffer
 
-# from .triton_patch.language.core import dtype, pointer_type, block_type, function_type
+# from triton.language.core import dtype, pointer_type, block_type, function_type
 # language.core.dtype = dtype
 # language.core.pointer_type = pointer_type
 # language.core.block_type = block_type
