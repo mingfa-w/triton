@@ -747,6 +747,12 @@ def get_packages():
     ]
     packages += [f'triton/backends/{backend.name}' for backend in backends]
     packages += get_language_extra_packages()
+    packages += [
+        "triton/triton_patch",
+        "triton/triton_patch/language",
+        "triton/triton_patch/compiler",
+        "triton/triton_patch/runtime",
+    ]
     if check_env_flag("TRITON_BUILD_PROTON", "ON"):  # Default ON
         packages += ["triton/profiler"]
 

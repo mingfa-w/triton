@@ -15,6 +15,15 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 project(triton)
 include(CTest)
 
+set(TRITON_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+set(PATCHED_TRITON_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/triton_patch")
+set(PATCHED_TRITON_LIBRARIES
+  "TritonIR"
+)
+set(PATCHED_TRITON_DEPENDS
+  "TritonTableGen"
+)
+
 if(NOT WIN32)
   list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 endif()
@@ -22,10 +31,10 @@ endif()
 
 
 # Options
-option(TRITON_BUILD_TUTORIALS "Build C++ Triton tutorials" ON)
-option(TRITON_BUILD_PYTHON_MODULE "Build Python Triton bindings" OFF)
-option(TRITON_BUILD_PROTON "Build the Triton Proton profiler" ON)
-option(TRITON_BUILD_UT "Build C++ Triton Unit Tests" ON)
+option(TRITON_BUILD_TUTORIALS "Build C++ Triton tutorials" OFF)
+option(TRITON_BUILD_PYTHON_MODULE "Build Python Triton bindings" ON)
+option(TRITON_BUILD_PROTON "Build the Triton Proton profiler" OFF)
+option(TRITON_BUILD_UT "Build C++ Triton Unit Tests" OFF)
 set(TRITON_CODEGEN_BACKENDS "" CACHE STRING "Enable different codegen backends")
 
 # Ensure Python3 vars are set correctly
@@ -52,7 +61,7 @@ if(TRITON_BUILD_UT)
 endif()
 
 # Compiler flags
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+# include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D__STDC_FORMAT_MACROS  -fPIC -std=gnu++17")
 
 
@@ -82,18 +91,42 @@ function(add_triton_object name)
     INTERFACE $<TARGET_OBJECTS:${name}>
   )
 
-
-  # add_library(${name} OBJECT ${ARG_UNPARSED_ARGUMENTS})
-  if(ARG_DEPENDS)
-    add_dependencies(${name} ${ARG_DEPENDS})
+  set(patched_depends "")
+  foreach(dep ${ARG_DEPENDS})
+    list(FIND PATCHED_TRITON_DEPENDS "${dep}" index)
+    if(index GREATER_EQUAL 0)
+      list(APPEND patched_depends "Patched_${dep}")
+      message(STATUS "Replace ${dep} by Patched_${dep} as a dependent of ${name}")
+    else()
+      list(APPEND patched_depends ${dep})
+    endif()
+  endforeach()
+  if(patched_depends)
+    add_dependencies(${name} ${patched_depends})
   endif()
-  if(ARG_LINK_LIBS)
-    target_link_libraries(${name} PUBLIC ${ARG_LINK_LIBS})
+
+  set(patched_link_libs "")
+  foreach(lib ${ARG_LINK_LIBS})
+    list(FIND PATCHED_TRITON_LIBRARIES "${lib}" index)
+    if(index GREATER_EQUAL 0)
+      list(APPEND patched_link_libs "Patched_${lib}")
+      message(STATUS "Replace ${lib} by Patched_${lib} to be linked by ${name}")
+    else()
+      list(APPEND patched_link_libs ${lib})
+    endif()
+  endforeach()
+  if(patched_link_libs)
+    target_link_libraries(${name} PUBLIC ${patched_link_libs})
   endif()
 endfunction(add_triton_object)
 
 set_property(GLOBAL PROPERTY TRITON_LIBS "")
 function(add_triton_library name)
+  list(FIND PATCHED_TRITON_LIBRARIES "${name}" index)
+  if(index GREATER_EQUAL 0)
+    message(STATUS "Adding Patched_${name} as a lib, instead of ${name}")
+    return()
+  endif()
   set_property(GLOBAL APPEND PROPERTY TRITON_LIBS ${name})
   add_triton_object(${name} ${ARGN})
   llvm_update_compile_flags(${name})
@@ -105,32 +138,46 @@ function(add_triton_plugin name)
   add_triton_object(${name} ${ARGN})
 endfunction()
 
+function(remove_component_from_property property_name component_to_remove)
+    get_property(prop_value GLOBAL PROPERTY ${property_name})
+    string(REPLACE ";" ";" prop_list "${prop_value}")
+    list(REMOVE_ITEM prop_list "${component_to_remove}")
+    string(REPLACE ";" ";" modified_prop "${prop_list}")
+    set_property(GLOBAL PROPERTY ${property_name} "${modified_prop}")
+    message(STATUS "Removed '${component_to_remove}' from ${property_name}")
+endfunction()
+
 
 # Disable warnings that show up in external code (gtest;pybind11)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -Wno-covered-switch-default -fvisibility=hidden")
 
-include_directories(".")
+include_directories(${TRITON_ROOT_DIR})
 include_directories(${MLIR_INCLUDE_DIRS})
 include_directories(${LLVM_INCLUDE_DIRS})
-include_directories(${PROJECT_SOURCE_DIR}/include)
+include_directories(${PATCHED_TRITON_ROOT_DIR}/include)
+include_directories(${PROJECT_BINARY_DIR}/triton_patch/include) # Tablegen'd files
+include_directories(${TRITON_ROOT_DIR}/include)
 include_directories(${PROJECT_BINARY_DIR}/include) # Tablegen'd files
-include_directories(${PROJECT_SOURCE_DIR}/third_party)
+include_directories(${TRITON_ROOT_DIR}/third_party)
 include_directories(${PROJECT_BINARY_DIR}/third_party) # Tablegen'd files
 
 # link_directories(${LLVM_LIBRARY_DIR})
-add_subdirectory(include)
-add_subdirectory(lib)
+add_subdirectory(${TRITON_ROOT_DIR}/include)
+add_subdirectory(${TRITON_ROOT_DIR}/lib)
+# remove_component_from_property(TRITON_LIBS "TritonIR")
+add_subdirectory(${PATCHED_TRITON_ROOT_DIR}/include)
+add_subdirectory(${PATCHED_TRITON_ROOT_DIR}/lib)
 
 # find_package(PythonLibs REQUIRED)
-set(TRITON_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+set(TRITON_SOURCE_DIR "${TRITON_ROOT_DIR}")
 set(TRITON_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 
 # TODO: Figure out which target is sufficient to fix errors; triton is
 # apparently not enough. Currently set linking libstdc++fs for all targets
 # to support some old version GCC compilers like 8.3.0.
-if (NOT WIN32 AND NOT APPLE)
-  link_libraries(stdc++fs)
-endif()
+# if (NOT WIN32 AND NOT APPLE)
+#   link_libraries(stdc++fs)
+# endif()
 
 
 # -----
@@ -138,7 +185,8 @@ endif()
 # ------
 if(TRITON_BUILD_PYTHON_MODULE)
   message(STATUS "Adding Python module")
-  set(PYTHON_SRC_PATH ${CMAKE_CURRENT_SOURCE_DIR}/python/src)
+  set(PYTHON_SRC_PATH ${TRITON_ROOT_DIR}/python/src)
+  set(PATCHED_PYTHON_SRC_PATH ${PATCHED_TRITON_ROOT_DIR}/python/src)
   include_directories(${PYTHON_SRC_PATH})
 
   if(PYTHON_INCLUDE_DIRS)
@@ -178,10 +226,6 @@ if(TRITON_BUILD_PYTHON_MODULE)
   foreach(CODEGEN_BACKEND ${TRITON_CODEGEN_BACKENDS})
     add_subdirectory(third_party/${CODEGEN_BACKEND})
   endforeach()
-
-  if (TRITON_BUILD_PROTON)
-    add_subdirectory(third_party/proton)
-  endif()
 
   get_property(triton_libs GLOBAL PROPERTY TRITON_LIBS)
   get_property(triton_plugins GLOBAL PROPERTY TRITON_PLUGINS)
@@ -253,11 +297,10 @@ if(TRITON_BUILD_PYTHON_MODULE)
   set(TRITON_BACKENDS_TUPLE "(${TRITON_BACKENDS_TUPLE})")
   add_compile_definitions(TRITON_BACKENDS_TUPLE=${TRITON_BACKENDS_TUPLE})
   add_library(triton SHARED ${PYTHON_SRC_PATH}/main.cc
-                  ${PYTHON_SRC_PATH}/ir.cc
-                  ${PYTHON_SRC_PATH}/passes.cc
-                  ${PYTHON_SRC_PATH}/interpreter.cc
-                  ${PYTHON_SRC_PATH}/llvm.cc)
-
+                            ${PATCHED_PYTHON_SRC_PATH}/ir.cc
+                            ${PYTHON_SRC_PATH}/passes.cc
+                            ${PYTHON_SRC_PATH}/interpreter.cc
+                            ${PYTHON_SRC_PATH}/llvm.cc)
   # Link triton with its dependencies
   target_link_libraries(triton PUBLIC ${TRITON_LIBRARIES})
   if(WIN32)
@@ -266,6 +309,7 @@ if(TRITON_BUILD_PYTHON_MODULE)
     target_link_libraries(triton PRIVATE z)
   endif()
   target_link_options(triton PRIVATE ${LLVM_LDFLAGS})
+  add_library(entry_ascend SHARED ${PATCHED_TRITON_ROOT_DIR}/lib/runtime/libentry/libentry.cpp)
 endif()
 
 if (UNIX AND NOT APPLE)

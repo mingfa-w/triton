@@ -11,8 +11,10 @@
 #include "triton/Dialect/TritonGPU/IR/Dialect.h"
 #include "triton/Dialect/TritonGPU/Transforms/Passes.h"
 #include "triton/Dialect/TritonGPU/Transforms/Utility.h"
+#include "triton/Tools/Sys/GetEnv.hpp"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/Debug.h"
 
 namespace mlir {
 namespace triton {
@@ -106,8 +108,12 @@ warpsPerTileV3(DotOp dotOp, const ArrayRef<int64_t> shape, int numWarps,
                const SmallVector<unsigned, 3> &instrShape) {
   SetVector<Operation *> slices;
   mlir::getForwardSlice(dotOp.getResult(), &slices);
-  if (llvm::find_if(slices, [](Operation *op) { return isa<DotOp>(op); }) !=
-      slices.end())
+  // Contains a chained dot. We prefer to assign warps to one axis
+  // to facilitate use cases like flash attention, allowing reductions within
+  // the same warp.
+  if (llvm::find_if(slices, [](Operation *op) {
+        return op->hasTrait<OpTrait::DotLike>();
+      }) != slices.end())
     return {(unsigned)numWarps, 1};
 
   // For MMAv3, the smallest indivisible unit of warp shape is (4, 1).
@@ -295,6 +301,7 @@ public:
                                           versionMinor, warpsPerTile, CTALayout,
                                           instrShape);
     }
+    PatternRewriterWithAsyncTaskIds taskIdRewriter(rewriter, dotOp);
     auto newRetType = RankedTensorType::get(
         oldRetType.getShape(), oldRetType.getElementType(), mmaEnc);
     // convert accumulator
@@ -309,7 +316,7 @@ public:
       bool allowTranspose = eltType.isF16() || eltType.isBF16();
       a = getSharedMemoryMMAOperand(a, rewriter, 0, allowTranspose);
       b = getSharedMemoryMMAOperand(b, rewriter, 1, allowTranspose);
-      newDot = rewriter.create<triton::nvidia_gpu::WarpGroupDotOp>(
+      newDot = taskIdRewriter.create<triton::nvidia_gpu::WarpGroupDotOp>(
           dotOp.getLoc(), newRetType, a, b, newAcc, nullptr,
           dotOp.getInputPrecision(), dotOp.getMaxNumImpreciseAcc(), false);
     } else {
@@ -331,9 +338,9 @@ public:
       auto newBType = RankedTensorType::get(
           oldBType.getShape(), oldBType.getElementType(), newBEncoding);
       b = rewriter.create<ConvertLayoutOp>(b.getLoc(), newBType, b);
-      newDot = rewriter.create<DotOp>(dotOp.getLoc(), newRetType, a, b, newAcc,
-                                      dotOp.getInputPrecision(),
-                                      dotOp.getMaxNumImpreciseAcc());
+      newDot = taskIdRewriter.create<DotOp>(dotOp.getLoc(), newRetType, a, b,
+                                            newAcc, dotOp.getInputPrecision(),
+                                            dotOp.getMaxNumImpreciseAcc());
     }
     // convert dot instruction
     rewriter.replaceOpWithNewOp<ConvertLayoutOp>(dotOp, oldRetType,
