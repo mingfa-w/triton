@@ -379,6 +379,7 @@ void init_triton_ir(py::module &&m) {
   py::class_<BoolAttr, Attribute>(m, "bool_attr", py::module_local());
   py::class_<UnitAttr, Attribute>(m, "unit_attr", py::module_local());
   py::class_<StringAttr, Attribute>(m, "str_attr", py::module_local());
+  py::class_<ArrayAttr, Attribute>(m, "array_attr", py::module_local());
 
   // Ops
   py::class_<OpState>(m, "OpState", py::module_local())
@@ -634,11 +635,15 @@ void init_triton_ir(py::module &&m) {
       .def("get_str_attr",
            [](TritonOpBuilder &self, std::string value) {
              return self.getBuilder().getStringAttr(value);
-           }
-        )
-      .def(
-          "get_unit_attr",
-          [](TritonOpBuilder &self) { return self.getBuilder().getUnitAttr(); })
+           })
+      .def("get_unit_attr",
+          [](TritonOpBuilder &self) {
+            return self.getBuilder().getUnitAttr();
+          })
+      .def("get_i64_array_attr",
+          [](TritonOpBuilder &self, const std::vector<int64_t>& array) {
+            return self.getBuilder().getI64ArrayAttr(array);
+          })
       // Use arith.ConstantOp to create constants
       // Constants
       .def("get_int1",
@@ -1389,7 +1394,7 @@ void init_triton_ir(py::module &&m) {
             }
             auto retTy = RankedTensorType::get(retSizes,
                 cast<RankedTensorType>(ful.getType()).getElementType());
-  
+
             return self.create<tensor::ExtractSliceOp>(retTy, ful, offsets, sizes, strides);
         })
       .def("create_insert_slice",

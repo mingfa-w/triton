@@ -15,6 +15,9 @@ from triton.language.core import (
     check_bit_width,
     _unwrap_if_constexpr,
     range,
+    add,
+    sub,
+    mul,
 )
 from typing import Optional
 # from triton.language.core import _unwrap_if_constexpr, _unwrap_shape
@@ -353,6 +356,31 @@ def get_element(src, indice, _builder=None, _generator=None):
     return semantic.get_element(src, new_indice, _builder)
 
 @builtin
+def __add__(self, other, _builder=None):
+    return add(self, other, sanitize_overflow=False, _builder=_builder)
+
+@builtin
+def __radd__(self, other, _builder=None):
+    return add(other, self, sanitize_overflow=False, _builder=_builder)
+
+@builtin
+def __sub__(self, other, _builder=None):
+    return sub(self, other, sanitize_overflow=False, _builder=_builder)
+
+@builtin
+def __rsub__(self, other, _builder=None):
+    return sub(other, self, sanitize_overflow=False, _builder=_builder)
+
+@builtin
+def __mul__(self, other, _builder=None):
+    return mul(self, other, sanitize_overflow=False, _builder=_builder)
+
+@builtin
+def __rmul__(self, other, _builder=None):
+    return mul(other, self, sanitize_overflow=False, _builder=_builder)
+
+
+@builtin
 def __lshift__(self, other, _builder=None):
     if self.type.scalar.is_floating():
         raise TypeError(f"unexpected type {self.type.scalar}")
@@ -390,8 +418,15 @@ class parallel(range):
 
 @builtin
 def compile_hint(ptr, hint_name, hint_val=None, _builder=None):
+    def _unwrap(val):
+        return _unwrap_if_constexpr(val) if val else val
+
     hint_name = _constexpr_to_value(hint_name)
     assert isinstance(hint_name, str), f"hint name: {hint_name} is not string"
+    if isinstance(hint_val, list):
+        hint_val = [_unwrap(val) for val in hint_val]
+    else:
+        hint_val = _unwrap(hint_val)
     hint_val = _unwrap_if_constexpr(hint_val) if hint_val else hint_val
     semantic.compile_hint(ptr, hint_name, hint_val, _builder)
 
