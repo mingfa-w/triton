@@ -845,6 +845,7 @@ setup(
             "pytest",
             "scipy>=1.7.1",
             "llnl-hatchet",
+            "pandas",
         ],
         "tutorials": [
             "matplotlib",
