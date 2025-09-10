@@ -832,6 +832,12 @@ setup(
         "Programming Language :: Python :: 3.12",
     ],
     test_suite="tests",
+    setup_requires=[
+        "triton==3.2.0",
+    ],
+    install_requires=[
+        "triton==3.2.0",
+    ],
     extras_require={
         "build": [
             "cmake>=3.20",
