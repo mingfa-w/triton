@@ -5,6 +5,10 @@ from ..backends import DriverBase
 def _create_driver():
     actives = [x.driver for x in backends.values() if x.driver.is_active()]
     if len(actives) != 1:
+        # warnning by wangmingfa: 当from torch_npu.contrib import transfer_to_npu时会同时检测到 npu 和 cuda
+        for active in actives:
+            if str(active) == "<class 'triton_x.TTXDriver'>":
+                return active()
         raise RuntimeError(f"{len(actives)} active drivers ({actives}). There should only be one.")
     return actives[0]()
 
