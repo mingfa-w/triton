@@ -794,7 +794,17 @@ def get_git_version_suffix():
     else:
         return get_git_commit_hash()
 
-
+arch = platform.machine()
+is_x86 = arch in ["x86_64", "amd64", "x86", "i386", "i686"]
+setup_requires=[]
+install_requires=[]
+if is_x86:
+    setup_requires = ["triton==3.2.0"]
+    install_requires = ["triton==3.2.0"]
+is_py38 = sys.version_info[:2] == (3, 8)
+if is_py38:
+    setup_requires=[]
+    install_requires=[]
 setup(
     name=os.environ.get("TRITON_WHEEL_NAME", "triton"),
     version="3.2.0" + get_git_version_suffix() + os.environ.get("TRITON_WHEEL_VERSION_SUFFIX", ""),
@@ -832,12 +842,8 @@ setup(
         "Programming Language :: Python :: 3.12",
     ],
     test_suite="tests",
-    setup_requires=[
-        "triton==3.2.0",
-    ],
-    install_requires=[
-        "triton==3.2.0",
-    ],
+    setup_requires=setup_requires,
+    install_requires=install_requires,
     extras_require={
         "build": [
             "cmake>=3.20",
