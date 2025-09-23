@@ -323,10 +323,9 @@ class Config:
         self.limit_auto_multi_buffer_only_for_local_buffer = bishengir_options.get("limit_auto_multi_buffer_only_for_local_buffer", None) # Compiler Default False
         self.limit_auto_multi_buffer_of_local_buffer = bishengir_options.get("limit_auto_multi_buffer_of_local_buffer", None) # Compiler Default no-limit
         self.set_workspace_multibuffer = bishengir_options.get("set_workspace_multibuffer", None) # Compiler Default 1
-        self.nested_sub_block_num = bishengir_options.get("nested_sub_block_num", None) # Compiler Default 1
         self.enable_hivm_auto_cv_balance = bishengir_options.get("enable_hivm_auto_cv_balance", None) # Compiler Default True
-        self.nested_vector_loop_num = bishengir_options.get("nested_vector_loop_num", None) # Compiler Default 1
-        self.nested_cube_loop_num = bishengir_options.get("nested_cube_loop_num", None) # Compiler Default 1
+        self.tile_mix_vector_loop = bishengir_options.get("tile_mix_vector_loop", None) # Compiler Default 1
+        self.tile_mix_cube_loop = bishengir_options.get("tile_mix_cube_loop", None) # Compiler Default 1
 
     def all_kwargs(self):
         return {
@@ -348,10 +347,9 @@ class Config:
                     ("limit_auto_multi_buffer_only_for_local_buffer", \
                         self.limit_auto_multi_buffer_only_for_local_buffer),
                     ("limit_auto_multi_buffer_of_local_buffer", self.limit_auto_multi_buffer_of_local_buffer),
-                    ("nested_sub_block_num", self.nested_sub_block_num),
                     ("set_workspace_multibuffer", self.set_workspace_multibuffer),
-                    ("nested_vector_loop_num", self.nested_vector_loop_num),
-                    ("nested_cube_loop_num", self.nested_cube_loop_num),
+                    ("tile_mix_vector_loop", self.tile_mix_vector_loop),
+                    ("tile_mix_cube_loop", self.tile_mix_cube_loop),
                 ) if v is not None
             }
         }
@@ -375,10 +373,9 @@ class Config:
         res.append(f"limit_auto_multi_buffer_only_for_local_buffer: \
             {self.limit_auto_multi_buffer_only_for_local_buffer}")
         res.append(f"limit_auto_multi_buffer_of_local_buffer: {self.limit_auto_multi_buffer_of_local_buffer}")
-        res.append(f"nested_sub_block_num: {self.nested_sub_block_num}")
         res.append(f"set_workspace_multibuffer: {self.set_workspace_multibuffer}")
-        res.append(f"nested_vector_loop_num: {self.nested_vector_loop_num}")
-        res.append(f"nested_cube_loop_num: {self.nested_cube_loop_num}")
+        res.append(f"tile_mix_vector_loop: {self.tile_mix_vector_loop}")
+        res.append(f"tile_mix_cube_loop: {self.tile_mix_cube_loop}")
         return ", ".join(res)
 
 

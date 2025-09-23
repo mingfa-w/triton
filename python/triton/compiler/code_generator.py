@@ -155,12 +155,10 @@ class ContainsReturnChecker(ast.NodeVisitor):
 
     def visit_Assign(self, node: ast.Assign) -> bool:
         # There couldn't be an early return
-        # x = ...
         return False
 
     def visit_AugAssign(self, node: ast.AugAssign) -> bool:
         # There couldn't be an early return
-        # x += ...
         return False
 
     def visit_Module(self, node: ast.Module) -> bool:
@@ -170,13 +168,6 @@ class ContainsReturnChecker(ast.NodeVisitor):
         return self._visit_stmts(node.body)
 
     def visit_If(self, node: ast.If) -> bool:
-        # TODO: optimize the following case in which we actually don't have
-        # a return when static_cond is false:
-        # if dynamic_cond
-        #   if static_cond
-        #     func_with_return
-        #   else
-        #     func_without_return
         ret = self._visit_stmts(node.body)
         if node.orelse:
             ret = ret or self._visit_stmts(node.orelse)
@@ -201,9 +192,6 @@ class CodeGenerator(ast.NodeVisitor):
         self.begin_line = begin_line - 1
         self.builder.set_loc(file_name, begin_line, 0)
         self.builder.options = options
-        # dict of functions provided by the backend. Below are the list of possible functions:
-        # Convert custom types not natively supported on HW.
-        # convert_custom_types(intput_tensor, dtype, fp_downcast_rounding=None, _builder=None)
         self.builder.codegen_fns = codegen_fns
         self.builder.module_map = {} if module_map is None else module_map
         self.module = self.builder.create_module() if module is None else module
@@ -815,8 +803,6 @@ class CodeGenerator(ast.NodeVisitor):
             liveins, insert_block = sr
             ip, last_loc = self._get_insertion_point_and_loc()
 
-            # loop body (the after region)
-            # loop_block = self.builder.create_block()
             dummy = self.builder.create_block()
             self.builder.set_insertion_point_to_start(dummy)
             self.scf_stack.append(node)

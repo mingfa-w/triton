@@ -1012,7 +1012,6 @@ JoinOp::inferReturnTypes(MLIRContext *context, std::optional<Location> location,
   assert(isa<RankedTensorType>(operands[1].getType()));
 
   Value lhs = operands[0];
-  Value rhs = operands[1];
   auto srcTy = cast<RankedTensorType>(lhs.getType());
 
   SmallVector<int64_t> retShape(srcTy.getShape());

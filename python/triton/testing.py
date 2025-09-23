@@ -247,8 +247,8 @@ def do_bench_npu(fn, warmup=5, active=30, prof_dir=None, keep_res=False):
         for _ in range(total):
             fn()
             prof.step()
+            torch.npu.synchronize()
 
-    torch.npu.synchronize()
     time = collect_single(torch_path)
 
     if not keep_res:
@@ -431,7 +431,6 @@ class Mark:
             ax.legend()
             ax.set_xlabel(bench.xlabel or first_x)
             ax.set_ylabel(bench.ylabel)
-            # ax.set_title(bench.plot_name)
             ax.set_xscale("log" if bench.x_log else "linear")
             ax.set_yscale("log" if bench.y_log else "linear")
             if show_plots:
@@ -719,12 +718,6 @@ language.tensor_descriptor_type = tensor_descriptor_type
 language.load_tensor_descriptor = load_tensor_descriptor
 language.store_tensor_descriptor = store_tensor_descriptor
 
-
-# from .triton_patch.language.core import dtype, pointer_type, block_type, function_type
-# language.core.dtype = dtype
-# language.core.pointer_type = pointer_type
-# language.core.block_type = block_type
-# language.core.function_type = function_type
 language.semantic.arange = arange
 language.semantic.floordiv = floordiv
 language.semantic.atom_red_typechecking_impl = atom_red_typechecking_impl

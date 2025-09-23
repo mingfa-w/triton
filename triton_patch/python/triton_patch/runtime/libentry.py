@@ -23,6 +23,7 @@ import sqlite3
 import threading
 import weakref
 from typing import Dict
+import ast
 
 import triton
 from triton._C import libentry_ascend
@@ -33,7 +34,18 @@ torch_device_fn = torch.npu
 from .code_cache import config_cache_dir
 
 DEVICE_COUNT = torch_device_fn.device_count()
-major_version = eval(triton.__version__.split(".")[0])
+major_version = int(triton.__version__.split(".")[0])
+
+
+def quote_identifier(name: str) -> str:
+    if not name:
+        raise ValueError("empty identifier")
+    allowed = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_")
+    if not (name[0].isalpha() or name[0] == "_"):
+        raise ValueError("identifier must start with letter or _")
+    if not all(ch in allowed for ch in name):
+        raise ValueError("identifier contains illegal char")
+    return '"' + name.replace('"', '""') + '"'
 
 
 class LibTuner(triton.runtime.Autotuner):
@@ -83,6 +95,7 @@ class LibTuner(triton.runtime.Autotuner):
                 use_cuda_graph,
             )
         self.__name__ = self.base_fn.__name__
+        self.table_name = quote_identifier(self.__name__)
         self.cache_path = config_cache_dir() / "TunedConfig.db"
         self.preload()
         weakref.finalize(self, self.store)
@@ -91,27 +104,27 @@ class LibTuner(triton.runtime.Autotuner):
         connect = sqlite3.connect(self.cache_path)
         c = connect.cursor()
         c.execute(
-            f"CREATE TABLE IF NOT EXISTS {self.__name__} (key TEXT PRIMARY KEY, config TEXT)"
+            f"CREATE TABLE IF NOT EXISTS {self.table_name} (key TEXT PRIMARY KEY, config TEXT)"
         )
-        cursor = c.execute(f"SELECT key, config from {self.__name__}")
+        cursor = c.execute(f"SELECT key, config from {self.table_name}")
 
         for row in cursor:
             key_str, config_str = row
-            key = [eval(k) for k in key_str[1:-1].split(", ")]
+            key = [ast.literal_eval(k) for k in key_str[1:-1].split(", ")]
 
             cfg_ls = [item.split(": ") for item in config_str.split(", ")]
             config = triton.Config({})
             attrs = -5 if major_version == 2 else -4
             for k, v in cfg_ls[:attrs]:
-                config.kwargs[k] = eval(v)
-            config.num_warps = eval(cfg_ls[attrs][1])
-            config.num_ctas = eval(cfg_ls[attrs + 1][1])
-            config.num_stages = eval(cfg_ls[attrs + 2][1])
+                config.kwargs[k] = ast.literal_eval(v)
+            config.num_warps = ast.literal_eval(cfg_ls[attrs][1])
+            config.num_ctas = ast.literal_eval(cfg_ls[attrs + 1][1])
+            config.num_stages = ast.literal_eval(cfg_ls[attrs + 2][1])
             if major_version == 2:
-                config.enable_warp_specialization = eval(cfg_ls[attrs + 3][1])
-                config.enable_persistent = eval(cfg_ls[attrs + 4][1])
+                config.enable_warp_specialization = ast.literal_eval(cfg_ls[attrs + 3][1])
+                config.enable_persistent = ast.literal_eval(cfg_ls[attrs + 4][1])
             else:
-                config.maxnreg = eval(cfg_ls[attrs + 3][1])
+                config.maxnreg = ast.literal_eval(cfg_ls[attrs + 3][1])
 
             self.cache[tuple(key)] = config
 
@@ -124,11 +137,11 @@ class LibTuner(triton.runtime.Autotuner):
         connect = sqlite3.connect(self.cache_path)
         c = connect.cursor()
         c.execute(
-            f"CREATE TABLE IF NOT EXISTS {self.__name__} (key TEXT PRIMARY KEY, config TEXT)"
+            f"CREATE TABLE IF NOT EXISTS {self.table_name} (key TEXT PRIMARY KEY, config TEXT)"
         )
         for key, config in self.cache.items():
             c.execute(
-                f"INSERT OR IGNORE INTO {self.__name__} (key, config) VALUES (?, ?)",
+                f"INSERT OR IGNORE INTO {self.table_name} (key, config) VALUES (?, ?)",
                 (str(key), config.__str__()),
             )
 
