@@ -788,6 +788,7 @@ language.math.atan2 = language.extra.ascend.libdevice.atan2
 language.math.div_rz = language.extra.ascend.libdevice.div_rz
 language.math.fmod = language.extra.ascend.libdevice.fmod
 language.math.trunc = language.extra.ascend.libdevice.trunc
+language.math.round = language.extra.ascend.libdevice.round
 language.math.finitef = finitef
 language.math.isfinited = isfinited
 language.math.rint = rint
