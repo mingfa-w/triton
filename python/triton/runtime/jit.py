@@ -603,8 +603,8 @@ class JITFunction(KernelInterface[T]):
                     continue
                 elif k in excess_kwargs:
                     not_work_params.append(k)
-            if len(not_work_params) != 0:
-                print("[WARNING] Please DO NOT tune args {}!".format(not_work_params))
+            #if len(not_work_params) != 0:
+            #    print("[WARNING] Please DO NOT tune args {}!".format(not_work_params))
 
             bound_vals = tuple(bound_args.values())
 
