@@ -1,3 +1,25 @@
+# Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+# Copyright 2018-2020 Philippe Tillet
+# Copyright 2020-2022 OpenAI
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
 import os
 from typing import List, Sequence, Optional, Union
 
@@ -14,7 +36,6 @@ from triton.language.core import (
     tensor,
     check_bit_width,
     _unwrap_if_constexpr,
-    range,
     add,
     sub,
     mul,
@@ -22,6 +43,12 @@ from triton.language.core import (
 from typing import Optional
 from . import semantic
 from .tensor_descriptor import tensor_descriptor, tensor_descriptor_base
+
+try:
+    import acl
+    is_compile_on_910_95 = acl.get_soc_name().startswith("Ascend910_95")
+except Exception as e:
+    is_compile_on_910_95 = False
 
 
 @_tensor_member_fn
@@ -126,6 +153,96 @@ def dot(
     return semantic.dot(
         input, other, acc, input_precision, max_num_imprecise_acc, out_dtype, _builder
     )
+
+
+@builtin
+def dot_scaled(lhs, lhs_scale, lhs_format, rhs, rhs_scale, rhs_format, acc=None, out_dtype=float32, lhs_k_pack=True, rhs_k_pack=True, _builder=None):
+    """  
+    Returns the matrix product of two blocks in microscaling format.
+    lhs and rhs use microscaling formats described here:
+    https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf
+    :param lhs: The first tensor to be multiplied.
+    :type lhs: 2D tensor of f8, f6 or f4 format packed in int32 format.
+    :param lhs_scale: Scale factor for lhs tensor.
+    :type lhs_scale: ue8m0 float8 type (currently represented as an int8 tensor).
+    :param lhs_format: format of the lhs tensor, available formats: {:code:`e4m3`, :code: `e5m2`, :code:`e2m3`, :code:`e3m2`, :code:`e2m1`}.
+    :param rhs: The second tensor to be multiplied.
+    :type rhs: 2D tensor of f8, f6 or f4 format packed in int32 format.
+    :param rhs_scale: Scale factor for rhs tensor.
+    :type rhs_scale: ue8m0 float8 type (currently represented as an int8 tensor).
+    :param rhs_format: format of the rhs tensor, available formats: {:code:`e4m3`, :code: `e5m2`, :code:`e2m3`, :code:`e3m2`, :code:`e2m1`}.
+    :param acc: The accumulator tensor. If not None, the result is added to this tensor.
+    """
+    out_dtype = _constexpr_to_value(out_dtype)
+    assert out_dtype == float32, "Only float32 is supported for out_dtype at the moment"
+    return semantic.dot_scaled(lhs, lhs_scale, lhs_format, rhs, rhs_scale, rhs_format, acc, out_dtype, lhs_k_pack, rhs_k_pack, _builder)
+
+
+@builtin
+def load(pointer, mask=None, other=None, boundary_check=(), padding_option="", cache_modifier="", eviction_policy="",
+         volatile=False, care_padding = True, _builder=None):
+    """
+    Return a tensor of data whose values are loaded from memory at location defined by `pointer`:
+
+        (1) If `pointer` is a single element pointer, a scalar is be loaded.  In
+            this case:
+
+            - `mask` and `other` must also be scalars,
+            - `other` is implicitly typecast to `pointer.dtype.element_ty`, and
+            - `boundary_check` and `padding_option` must be empty.
+
+        (2) If `pointer` is an N-dimensional tensor of pointers, an
+            N-dimensional tensor is loaded.  In this case:
+
+            - `mask` and `other` are implicitly broadcast to `pointer.shape`,
+            - `other` is implicitly typecast to `pointer.dtype.element_ty`, and
+            - `boundary_check` and `padding_option` must be empty.
+
+        (3) If `pointer` is a block pointer defined by `make_block_ptr`, a
+            tensor is loaded.  In this case:
+
+            - `mask` and `other` must be `None`, and
+            - `boundary_check` and `padding_option` can be specified to control the behavior of out-of-bound access.
+
+    :param pointer: Pointer to the data to be loaded
+    :type pointer: `triton.PointerType`, or block of `dtype=triton.PointerType`
+    :param mask: if `mask[idx]` is false, do not load the data at address `pointer[idx]`
+        (must be `None` with block pointers)
+    :type mask: Block of `triton.int1`, optional
+    :param other: if `mask[idx]` is false, return `other[idx]`
+    :type other: Block, optional
+    :param boundary_check: tuple of integers, indicating the dimensions which should do the boundary check
+    :type boundary_check: tuple of ints, optional
+    :param padding_option: should be one of {"", "zero", "nan"}, the padding value to use while out of bounds. "" means an undefined value.
+    :param cache_modifier: changes cache option in NVIDIA PTX
+    :type cache_modifier: str, optional, should be one of {"", "ca", "cg"}, where "ca" stands for
+        cache at all levels and "cg" stands for cache at global level (cache in L2 and below, not L1), see
+        `cache operator <https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#cache-operators>`_ for more details.
+    :param eviction_policy: changes eviction policy in NVIDIA PTX
+    :type eviction_policy: str, optional
+    :param volatile: changes volatile option in NVIDIA PTX
+    :type volatile: bool, optional
+    
+    :param care_padding: represents whether user cares about padding value or not, default is True, works as below:
+        1. if 'other' is not None, 'care_padding' takes no effect.
+        2. if 'other' is None and 'care_padding' = True, loaded tensor will fill zeroes on masked places.
+        3. if 'other' is None and 'care_padding' = False, masked places on loaded tensor will be random values, and tl.load may have a better performence.
+    :type care_padding: bool, optional
+    """
+    # `mask` and `other` can be constexpr
+    mask = _constexpr_to_value(mask)
+    other = _constexpr_to_value(other)
+    if mask is not None:
+        mask = real_semantic.to_tensor(mask, _builder)
+    if other is not None:
+        other = real_semantic.to_tensor(other, _builder)
+    padding_option = _constexpr_to_value(padding_option)
+    cache_modifier = _constexpr_to_value(cache_modifier)
+    eviction_policy = _constexpr_to_value(eviction_policy)
+    volatile = _constexpr_to_value(volatile)
+    care_padding = _constexpr_to_value(care_padding)
+    return semantic.load(pointer, mask, other, boundary_check, padding_option, cache_modifier, eviction_policy,
+                         volatile, care_padding, _builder)
 
 
 @_tensor_member_fn
@@ -258,6 +375,74 @@ def __rshift__(self, other, _builder=None):
     else:
         return semantic.lshr(self, other, _builder)
 
+class range():
+    """
+    Iterator that counts upward forever.
+
+    .. highlight:: python
+    .. code-block:: python
+
+        @triton.jit
+        def kernel(...):
+            for i in tl.range(10, num_stages=3):
+                ...
+    :note: This is a special iterator used to implement similar semantics to Python's :code:`range` in the context of
+        :code:`triton.jit` functions. In addition, it allows user to pass extra attributes to the compiler.
+    :param arg1: the start value.
+    :param arg2: the end value.
+    :param step: the step value.
+    :param num_stages: pipeline the loop into this many stages (so there are
+        :code:`num_stages` iterations of the loop in flight at once).
+
+        Note this is subtly different than passing :code:`num_stages` as a
+        kernel argument.  The kernel argument only pipelines loads that feed
+        into :code:`dot` operations, while this attribute tries to pipeline most
+        (though not all) loads in this loop.
+    :param loop_unroll_factor: Tells the Triton IR level loop unroller how many
+        times to unroll a for loop that this range is used with. Less than 2 for
+        this value implies no unrolling.
+    :param disallow_acc_multi_buffer: If true, prevent the accumulator of the dot
+        operation in the loop to be multi-buffered, if applicable.
+    :param flatten: automatically flatten the loop nest starting at this loop to
+        create a single flattened loop. The compiler will try to pipeline the
+        flattened loop which can avoid stage stalling.
+    :param warp_specialize: Enable automatic warp specialization on the loop.
+        The compiler will attempt to partition memory, MMA, and vector
+        operations in the loop into separate async partitions. This will
+        increase the total number of warps required by the kernel.
+    :param disable_licm: Tells the compiler it shouldn't hoist loop invariant
+        code outside the loop. This is often useful to avoid creating long liveranges
+        within a loop.
+
+        Note that warp specialization is only supported on Blackwell GPUs and
+        only works on simple matmul loops. Support for arbitrary loops will be
+        expanded over time.
+    """
+
+    def __init__(self, arg1, arg2=None, step=None, num_stages=None, loop_unroll_factor=None,
+                 disallow_acc_multi_buffer=False, flatten=False, warp_specialize=False, disable_licm=False):
+        if step is None:
+            self.step = constexpr(1)
+        else:
+            self.step = step
+        if arg2 is None:
+            self.start = constexpr(0)
+            self.end = arg1
+        else:
+            self.start = arg1
+            self.end = arg2
+        self.num_stages = num_stages
+        self.loop_unroll_factor = loop_unroll_factor
+        self.disallow_acc_multi_buffer = disallow_acc_multi_buffer
+        self.flatten = flatten
+        self.warp_specialize = warp_specialize
+        self.disable_licm = disable_licm
+
+    def __iter__(self):
+        raise RuntimeError("tl.range can only be used in @triton.jit'd functions")
+
+    def __next__(self):
+        raise RuntimeError("tl.range can only be used in @triton.jit'd functions")
 
 class parallel(range):
     """
@@ -439,10 +624,122 @@ def make_tensor_descriptor(
     """
     return semantic.make_tensor_descriptor(base, shape, strides, block_shape, _builder)
 
+@builtin
+def index_select(src: tensor, idx: tensor, bound, lstdim_blksiz, offsets, numels, _builder=None):
+    """
+    Embedding
+    :src_ptr:
+    :idx:
+    """
+    bound = _constexpr_to_value(bound)
+    lstdim_blksiz = _constexpr_to_value(lstdim_blksiz)
+    return semantic.embedding_gather(src, idx, bound, lstdim_blksiz, offsets, numels, _builder)
+
+@builtin
+def index_select_simd(
+    src,
+    dim,
+    index,
+    src_shape,
+    src_offset,
+    read_shape,
+    _builder=None
+) -> tensor:
+    """
+    Parallel index_select operation from Global Memory to Unified Buffer (SIMD version).
+
+    Selects data from multiple indices along a specified dimension and loads
+    them as tiles from GM directly to UB with zero-copy semantics.
+
+    :param src: Source tensor pointer (in GM)
+    :type src: tensor (pointer type)
+    :param dim: The dimension along which to select indices
+    :type dim: int or constexpr
+    :param index: 1D tensor of indices to select (in UB)
+    :type index: tensor
+    :param src_shape: Complete shape of the source tensor (can be int or tensor)
+    :type src_shape: List[Union[int, tensor]]
+    :param src_offset: Starting offset for reading (can be int or tensor)
+    :type src_offset: List[Union[int, tensor]]
+    :param read_shape: Size to read (tile shape, can be int or tensor)
+    :type read_shape: List[Union[int, tensor]]
+
+    **Constraints:**
+
+    - ``read_shape[dim]`` must be ``-1``
+    - ``src_offset[dim]`` can be ``-1`` (will be ignored)
+    - Boundary handling: ``src_offset + read_shape > src_shape`` automatically
+      truncates to ``src_shape`` boundary
+    - Does not check if ``index`` contains out-of-bounds values
+
+    **Example:**
+
+    .. code-block:: python
+
+        @triton.jit
+        def kernel(src_ptr, output_ptr, indices_ptr, M, N, D, ...):
+            # Load indices (e.g., [5, 10, 15, 20])
+            indices = tl.load(indices_ptr + tl.arange(0, 4))
+
+            # Example 1: Static shapes (constants)
+            # Index select from dimension 1
+            # src: [8, 100, 256], index_select at dim=1
+            # Read: [4, ?, 128] starting from [4, ?, 128]
+            result = libdevice.index_select_simd(
+                src_ptr,
+                dim=1,
+                index=indices,
+                src_shape=[8, 100, 256],
+                src_offset=[4, -1, 128],
+                read_shape=[4, -1, 128]
+            )
+            # result shape: [4, 4, 128]
+
+            # Example 2: Dynamic shapes (variables)
+            result2 = libdevice.index_select_simd(
+                src_ptr,
+                dim=1,
+                index=indices,
+                src_shape=[M, N, D],
+                src_offset=[4, -1, 128],
+                read_shape=[4, -1, 128]
+            )
+
+            tl.store(output_ptr + ..., result)
+
+    :return: Result tensor in UB with shape where ``dim`` is replaced
+        by the length of ``index``
+    :rtype: tensor
+    """
+    dim = _constexpr_to_value(dim)
+
+    # Process shape parameters: convert constexpr to values, keep tensors as-is
+    def process_param(val):
+        """Convert constexpr to value, keep tensor or int as-is"""
+        if isinstance(val, tensor):
+            return val
+        else:
+            return _constexpr_to_value(val)
+
+    newsrc_shape = [
+        real_semantic.to_tensor(o, _builder) if isinstance(o, constexpr) else o
+        for o in src_shape
+    ]
+    newsrc_offset = [
+        real_semantic.to_tensor(o, _builder) if isinstance(o, constexpr) else o
+        for o in src_offset
+    ]
+    assert len(index.shape) == 1, "index must be a 1D tensor"
+
+    return semantic.index_select_simd(
+        src, dim, index, newsrc_shape, newsrc_offset, read_shape, _builder
+    )
+
 
 def dtype_to_ir(self, builder: ir.builder) -> ir.type:
-    if self.name.startswith("fp8"):
-        raise ValueError(f'unexpected type fp8.')
+    if not is_compile_on_910_95:
+        if self.name.startswith("fp8"):
+            raise ValueError(f'unexpected type fp8.')
 
     if self.name == 'void':
         return builder.get_void_ty()

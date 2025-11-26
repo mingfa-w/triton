@@ -1,3 +1,25 @@
+# Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+# Copyright 2018-2020 Philippe Tillet
+# Copyright 2020-2022 OpenAI
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
 import ast
 import inspect
 import re
@@ -896,6 +918,10 @@ class CodeGenerator(ast.NodeVisitor):
             return
         num_stages = None
         loop_unroll_factor = None
+        disallow_acc_multi_buffer = False
+        flatten = False
+        warp_specialize = False
+        disable_licm = False
         bind_sub_block = None
         if IteratorClass in [language.range, language.parallel]:
             iterator = IteratorClass(*iter_args, **iter_kwargs)
@@ -907,6 +933,10 @@ class CodeGenerator(ast.NodeVisitor):
             step = iterator.step
             num_stages = iterator.num_stages
             loop_unroll_factor = iterator.loop_unroll_factor
+            disallow_acc_multi_buffer = iterator.disallow_acc_multi_buffer
+            flatten = iterator.flatten
+            warp_specialize = iterator.warp_specialize
+            disable_licm = iterator.disable_licm
             if (IteratorClass is language.parallel):
                 bind_sub_block = iterator.bind_sub_block
         elif IteratorClass is range:
@@ -981,6 +1011,14 @@ class CodeGenerator(ast.NodeVisitor):
                 for_op.set_attr("tt.num_stages", self.builder.get_int32_attr(num_stages))
             if loop_unroll_factor is not None:
                 for_op.set_attr("tt.loop_unroll_factor", self.builder.get_int32_attr(loop_unroll_factor))
+            if disallow_acc_multi_buffer:
+                for_op.set_attr("tt.disallow_acc_multi_buffer", self.builder.get_unit_attr())
+            if flatten:
+                for_op.set_attr("tt.flatten", self.builder.get_unit_attr())
+            if warp_specialize:
+                for_op.set_attr("tt.warp_specialize", self.builder.get_unit_attr())
+            if disable_licm:
+                for_op.set_attr("tt.disable_licm", self.builder.get_unit_attr())
             if (bind_sub_block is not None) and bind_sub_block:
                 for_op.set_attr("bind_sub_block", self.builder.get_bool_attr(bind_sub_block))
 

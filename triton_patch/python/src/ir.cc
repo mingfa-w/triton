@@ -1,3 +1,27 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * Copyright 2018-2020 Philippe Tillet
+ * Copyright 2020-2022 OpenAI
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+
 #include <optional>
 #include <pybind11/functional.h>
 #include <pybind11/pybind11.h>
@@ -1702,6 +1726,66 @@ void init_triton_ir(py::module &&m) {
               std::vector<int32_t> &tensorShape, bool isSignedInteger) -> Value {
                 return self.create<MakeTensorDescOp>(base, shape, strides, tensorShape, isSignedInteger);
            })
+      // Index select SIMD operation
+      .def("create_index_select_simd",
+           [](TritonOpBuilder &self, Value &src, Value &index, int32_t dim,
+              std::vector<Value> &srcShape, std::vector<Value> &srcOffset,
+              std::vector<int32_t> &readShape, std::vector<int32_t> &returnShape) -> Value {
+                auto &builder = self.getBuilder();
+                auto loc = self.getLastLoc();
+
+                // Get element type from source pointer
+                Type elemType;
+                if (auto ptrTy = dyn_cast<triton::PointerType>(src.getType())) {
+                  elemType = ptrTy.getPointeeType();
+                } else {
+                  llvm::report_fatal_error("index_select_simd: src must be pointer type");
+                }
+
+                // Create return tensor type
+                llvm::SmallVector<int64_t> retShape;
+                for (const auto &s : returnShape) {
+                  retShape.push_back(s);
+                }
+                auto retTensorType = RankedTensorType::get(retShape, elemType);
+
+                // Convert srcShape and srcOffset values to index type if needed
+                llvm::SmallVector<Value> srcShapeIndex;
+                for (auto val : srcShape) {
+                  if (!val.getType().isIndex()) {
+                    val = self.create<arith::IndexCastOp>(builder.getIndexType(), val);
+                  }
+                  srcShapeIndex.push_back(val);
+                }
+                
+                llvm::SmallVector<Value> srcOffsetIndex;
+                for (auto val : srcOffset) {
+                  if (!val.getType().isIndex()) {
+                    val = self.create<arith::IndexCastOp>(builder.getIndexType(), val);
+                  }
+                  srcOffsetIndex.push_back(val);
+                }
+
+                // Create attributes
+                auto dimAttr = builder.getI32IntegerAttr(dim);
+                auto readShapeAttr = builder.getDenseI32ArrayAttr(readShape);
+
+                // Create the IndexSelectSimdOp
+                // Parameter order must match TritonOps.td definition:
+                // src, index, dim, src_shape, src_offset, read_shape
+                auto indexSelectSimdOp = builder.create<triton::IndexSelectSimdOp>(
+                    loc,
+                    retTensorType,        // result type
+                    src,                  // src pointer
+                    index,                // index tensor
+                    dimAttr,              // dim attribute
+                    srcShapeIndex,        // src_shape (variadic, index type)
+                    srcOffsetIndex,       // src_offset (variadic, index type)
+                    readShapeAttr         // read_shape attribute
+                );
+
+                return indexSelectSimdOp.getResult();
+           })
       // Add an annotation
       .def("create_annotation",
            [](TritonOpBuilder &self, Value &ptr, const std::string &attrKey,
@@ -1710,6 +1794,23 @@ void init_triton_ir(py::module &&m) {
              annotationOp->setAttr(self.getBuilder().getStringAttr(attrKey),
                                    attrVal);
            })
+      .def("create_embedding_gather",
+           [](TritonOpBuilder &self, Value &src, Value &idx,
+              const int64_t bound, const int64_t blksiz,
+              std::vector<Value> &offsets, std::vector<Value> &numels) -> Value {
+                auto elemTy = cast<PointerType>(src.getType()).getPointeeType();
+                auto idxTy = cast<RankedTensorType>(idx.getType());
+                auto idxShape = idxTy.getShape();
+                std::vector<int64_t> retShape(idxShape.begin(), idxShape.end());
+                retShape.push_back(blksiz);
+                auto resType = RankedTensorType::get(retShape, elemTy);
+                auto idxBitWidth = idxTy.getElementType().getIntOrFloatBitWidth();
+                auto bound_val = self.create<arith::ConstantIntOp>(bound, idxBitWidth);
+                auto blksiz_val = self.create<arith::ConstantIntOp>(blksiz, idxBitWidth);
+
+                return self.create<EmbeddingGatherOp>(
+                          resType, src, idx, bound_val, blksiz_val, offsets, numels);
+            })
       // Add sort
       .def("create_sort",
            [](TritonOpBuilder &self, Value src, int64_t dim, bool descending) -> Value {

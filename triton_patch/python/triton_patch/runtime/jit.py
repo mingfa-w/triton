@@ -1,3 +1,25 @@
+# Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+# Copyright 2018-2020 Philippe Tillet
+# Copyright 2020-2022 OpenAI
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
 from __future__ import annotations, division
 import ast
 import hashlib
@@ -577,6 +599,9 @@ class JITFunction(KernelInterface[T]):
 
         if self.binder is None:
             self.create_binder(backend)
+        
+        if self.bishengir_option:
+            kwargs.update(self.bishengir_option)
 
         bound_args, sig_and_spec, constexpr_vals, non_constexpr_vals, excess_kwargs = self.binder(*args, **kwargs)
 
@@ -596,15 +621,16 @@ class JITFunction(KernelInterface[T]):
                 if k not in options.__dict__:
                     raise KeyError("Keyword argument %s was specified but unrecognised" % k)
             ignor_params = ["debug", "sanitize_overflow", "llvm_version", "kernel_name", \
-                "allowed_dot_input_precisions", "multibuffer", "stream"]
+                "allowed_dot_input_precisions", "multibuffer", "stream", "inject_barrier_all", \
+                "inject_block_all", "limit_auto_multi_buffer_only_for_local_buffer"]
             not_work_params = []
             for k in kwargs:
                 if k in ignor_params:
                     continue
                 elif k in excess_kwargs:
                     not_work_params.append(k)
-            #if len(not_work_params) != 0:
-            #    print("[WARNING] Please DO NOT tune args {}!".format(not_work_params))
+            # if len(not_work_params) != 0:
+            #     print("[WARNING] Please DO NOT tune args {}!".format(not_work_params))
 
             bound_vals = tuple(bound_args.values())
 
@@ -673,7 +699,7 @@ class JITFunction(KernelInterface[T]):
         return kernel
 
     def __init__(self, fn, version=None, do_not_specialize=None, do_not_specialize_on_alignment=None, debug=None,
-                 noinline=None, repr=None, launch_metadata=None):
+                 noinline=None, repr=None, launch_metadata=None, bishengir_option=None):
         do_not_specialize = do_not_specialize if do_not_specialize else []
         do_not_specialize_on_alignment = do_not_specialize_on_alignment if do_not_specialize_on_alignment else []
 
@@ -686,6 +712,7 @@ class JITFunction(KernelInterface[T]):
         self.starting_line_number = inspect.getsourcelines(fn)[1]
         self.repr = lambda _: fn.__name__ if repr is None else repr(_)
         self.launch_metadata = launch_metadata
+        self.bishengir_option = bishengir_option
 
         self.binder = None
 
@@ -813,6 +840,7 @@ def jit(
     do_not_specialize_on_alignment: Optional[Iterable[int]] = None,
     debug: Optional[bool] = None,
     noinline: Optional[bool] = None,
+    options: Optional[dict] = None,
 ) -> Callable[[T], JITFunction[T]]:
     ...
 
@@ -827,6 +855,7 @@ def jit(
     do_not_specialize_on_alignment: Optional[Iterable[int]] = None,
     debug: Optional[bool] = None,
     noinline: Optional[bool] = None,
+    options: Optional[dict] = None,
 ) -> Union[JITFunction[T], Callable[[T], JITFunction[T]]]:
     """
     Decorator for JIT-compiling a function using the Triton compiler.
@@ -848,6 +877,7 @@ def jit(
 
     def decorator(fn: T) -> JITFunction[T]:
         assert callable(fn)
+
         if os.getenv("TRITON_INTERPRET", "0") == "1":
             from .interpreter import InterpretedFunction
             return InterpretedFunction(fn, version=version, do_not_specialize=do_not_specialize,
@@ -863,6 +893,7 @@ def jit(
                 noinline=noinline,
                 repr=repr,
                 launch_metadata=launch_metadata,
+                bishengir_option=options,
             )
 
     if fn is not None:

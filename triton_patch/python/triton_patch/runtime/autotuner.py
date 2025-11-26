@@ -1,3 +1,25 @@
+# Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+# Copyright 2018-2020 Philippe Tillet
+# Copyright 2020-2022 OpenAI
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
 from __future__ import annotations
 
 import builtins
@@ -303,8 +325,22 @@ class Config:
     :ivar bishengir_options: dict of options that pass to bishengir.
     """
 
-    def __init__(self, kwargs, num_warps=4, num_stages=2, num_ctas=1, num_buffers_warp_spec=0, num_consumer_groups=0,
-                 reg_dec_producer=0, reg_inc_consumer=0, maxnreg=None, pre_hook=None, **bishengir_options):
+    def __init__(
+        self,
+        kwargs,
+        num_warps=4,
+        num_stages=2,
+        num_ctas=1,
+        num_buffers_warp_spec=0,
+        num_consumer_groups=0,
+        reg_dec_producer=0,
+        reg_inc_consumer=0,
+        maxnreg=None,
+        pre_hook=None,
+        force_simt_template=False,
+        enable_linearize=False,
+        **bishengir_options
+    ):
         self.kwargs = kwargs
         self.num_warps = num_warps
         self.num_ctas = num_ctas
@@ -315,10 +351,13 @@ class Config:
         self.reg_inc_consumer = reg_inc_consumer
         self.maxnreg = maxnreg
         self.pre_hook = pre_hook
+        self.force_simt_template = force_simt_template
+        self.enable_linearize = enable_linearize
 
-                    
+
         # BiShengIR Options allowed for autotune
         self.multibuffer = bishengir_options.get("multibuffer", None) # Compiler Default True
+        self.sync_solver = bishengir_options.get("sync_solver", None) # Compiler Default False
         self.unit_flag = bishengir_options.get("unit_flag", None) # Compiler Default False
         self.limit_auto_multi_buffer_only_for_local_buffer = bishengir_options.get("limit_auto_multi_buffer_only_for_local_buffer", None) # Compiler Default False
         self.limit_auto_multi_buffer_of_local_buffer = bishengir_options.get("limit_auto_multi_buffer_of_local_buffer", None) # Compiler Default no-limit
@@ -340,9 +379,12 @@ class Config:
                     ("reg_dec_producer", self.reg_dec_producer),
                     ("reg_inc_consumer", self.reg_inc_consumer),
                     ("maxnreg", self.maxnreg),
+                    ("force_simt_template", self.force_simt_template),
+                    ("enable_linearize", self.enable_linearize),
 
                     ("multibuffer", self.multibuffer),
                     ("enable_hivm_auto_cv_balance", self.enable_hivm_auto_cv_balance),
+                    ("sync_solver", self.sync_solver),
                     ("unit_flag", self.unit_flag),
                     ("limit_auto_multi_buffer_only_for_local_buffer", \
                         self.limit_auto_multi_buffer_only_for_local_buffer),
@@ -369,6 +411,7 @@ class Config:
 
         res.append(f"multibuffer: {self.multibuffer}")
         res.append(f"enable_hivm_auto_cv_balance: {self.enable_hivm_auto_cv_balance}")
+        res.append(f"sync_solver: {self.sync_solver}")
         res.append(f"unit_flag: {self.unit_flag}")
         res.append(f"limit_auto_multi_buffer_only_for_local_buffer: \
             {self.limit_auto_multi_buffer_only_for_local_buffer}")
@@ -376,6 +419,7 @@ class Config:
         res.append(f"set_workspace_multibuffer: {self.set_workspace_multibuffer}")
         res.append(f"tile_mix_vector_loop: {self.tile_mix_vector_loop}")
         res.append(f"tile_mix_cube_loop: {self.tile_mix_cube_loop}")
+        res.append(f"force_simt_template: {self.force_simt_template}")
         return ", ".join(res)
 
 

@@ -353,6 +353,92 @@ def TT_StoreOp : TT_Op<"store", [
 }
 
 //
+// EmbeddingGather Op
+//
+def TT_EmbeddingGatherOp : TT_Op<"embedding_gather", [
+  DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+  SameVariadicOperandSize,
+]> {
+    let summary = "Gather load from a tensor pointer with the embedding semantics";
+
+    let arguments = (
+      ins TT_Ptr:$src,
+          TT_Tensor:$idx,
+          AnyTypeOf<[I32, I64]>:$bound,
+          AnyTypeOf<[I32, I64]>:$blocksize,
+          Variadic<AnyTypeOf<[I32, I64]>>:$offsets,
+          Variadic<AnyTypeOf<[I32, I64]>>:$numels
+    );
+
+    let results = (outs TT_Tensor:$result);
+
+    let assemblyFormat = [{
+      $src `:` type($src) `,` $idx `:` type($idx) `,`
+      $bound `:` type($bound) `,` $blocksize `:` type($blocksize) `,`
+      `[` $offsets `:` type($offsets) `]` `,` `[` $numels `:` type($numels) `]`
+      attr-dict `->` type($result)
+    }];
+
+    let builders = [
+      OpBuilder<(ins
+          "Value":$src,
+          "Value":$idx,
+          "Value":$bound,
+          "Value":$blocksize,
+          "ValueRange":$offsets,
+          "ValueRange":$numels
+      )>
+    ];
+    // let hasCanonicalizer = 1;
+}
+
+def TT_IndexSelectSimdOp : TT_Op<"index_select_simd", [
+  MemoryEffects<[MemRead<GlobalMemory>]>,
+  DeclareOpInterfaceMethods<InferTypeOpInterface>,
+  AttrSizedOperandSegments
+]> {
+    let summary = "Index select SIMD operation from global memory";
+    
+    let description = [{
+        Index select operation (SIMD version) that loads data from multiple indices along a 
+        specified dimension. The operation selects data from GM and loads them 
+        as tiles directly to UB with zero-copy semantics.
+        
+        The operation takes:
+        - src: Source pointer (in GM)
+        - index: 1D tensor of indices to select (already in UB)
+        - dim: The dimension along which to select
+        - src_shape: Complete shape of the source tensor
+        - src_offset: Starting offset for reading
+        - read_shape: Size to read (tile shape)
+        
+        Constraints:
+        - read_shape[dim] must be -1
+        - src_offset[dim] can be -1 (will be ignored)
+    }];
+
+    let arguments = (
+      ins
+      TT_PtrLike:$src,
+      TT_IntTensor:$index,
+      I32Attr:$dim,
+      Variadic<Index>:$src_shape,
+      Variadic<Index>:$src_offset,
+      DenseI32ArrayAttr:$read_shape
+    );
+
+    let results = (outs TT_Tensor:$result);
+
+    let assemblyFormat = [{
+      $src `,` $index `,` $dim `,`
+      `[` $src_shape `]` `,`
+      `[` $src_offset `]` `,`
+      $read_shape
+      attr-dict `:` type($src) `,` type($index) `->` type($result)
+    }];
+}
+
+//
 // Atomic Ops
 //
 def TT_AtomicRMWOp : TT_Op<"atomic_rmw", [
@@ -1427,6 +1513,56 @@ def TT_CustomOp : TT_Op<"custom",  [Pure, MemoryEffects<[MemWrite]>]> {
   let arguments = (ins StrAttr:$op_name, ArrayAttr:$str_args, Variadic<AnyType>:$args);
 
   let assemblyFormat = "$op_name attr-dict ($args^ `:` type($args))?";
+}
+
+//
+// Built-in: IndirectLoad Op
+//
+def TT_IndirectLoadOp : TT_Op<"indirect_load", [
+  DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+  AttrSizedOperandSegments
+]> {
+  let summary = "Built-in: indirect load from global memory using per-element offsets with optional mask/other";
+
+  let description = [{
+    Built-in operation emitted by the compiler for unstructured (discrete) memory
+    accesses.These are not written directly in the user IR.
+
+    Load values from global memory based on per-element offsets. If `mask`
+    is provided, false lanes return `other`.
+
+    The operation takes:
+    - src: Source pointer
+    - offsets: Tensor of per-element offsets (relative to `src`) for accessing source memory
+    - mask (optional):  if mask[idx] is false, do not load the data at address pointer[idx]
+    - other (optional): if mask[idx] is false, return other[idx]
+  }];
+
+  let arguments = (
+    ins TT_Ptr:$src,
+        TT_IntTensor:$offsets,
+        Optional<TT_BoolLike>:$mask,
+        Optional<TT_Type>:$other
+  );
+
+  let results = (outs TT_Tensor:$result);
+
+  let assemblyFormat = [{
+    $src `:` type($src) `,`
+    $offsets `:` type($offsets)
+    (`,` $mask^ `:` type($mask))?
+    (`,` $other^ `:` type($other))?
+    attr-dict `->` type($result)
+  }];
+
+  let builders = [
+    OpBuilder<(ins
+      "Value":$src,
+      "Value":$offsets,
+      "Value":$mask,
+      "Value":$other
+    )>
+  ];
 }
 
 #endif // Triton_OPS

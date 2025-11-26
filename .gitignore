@@ -75,4 +75,5 @@ docs/sg_execution_times.rst
 # macOS
 .DS_Store
 python/.egg-info/
+python/.eggs/
 python/byted_triton_x.egg-info/

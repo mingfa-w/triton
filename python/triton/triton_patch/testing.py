@@ -1,14 +1,41 @@
+# Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+# Copyright 2018-2020 Philippe Tillet
+# Copyright 2020-2022 OpenAI
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
 import functools
 import os
 import subprocess
 import multiprocessing
-import os
 import sys
+import builtins
 from contextlib import contextmanager
 from typing import Any, Dict, List
 from . import language as tl
 from . import runtime
 
+try:
+    import acl
+    is_compile_on_910_95 = acl.get_soc_name().startswith("Ascend910_95")
+except Exception as e:
+    is_compile_on_910_95 = False
 
 def nvsmi(attrs):
     attrs = ','.join(attrs)
@@ -64,7 +91,7 @@ def do_bench_cudagraph(fn, rep=20, grad_to_none=None, quantiles=None, return_mod
         start_event = torch.cuda.Event(enable_timing=True)
         end_event = torch.cuda.Event(enable_timing=True)
         start_event.record()
-        for _ in range(5):
+        for _ in builtins.range(5):
             fn()
         end_event.record()
         torch.cuda.synchronize()
@@ -74,7 +101,7 @@ def do_bench_cudagraph(fn, rep=20, grad_to_none=None, quantiles=None, return_mod
         # host overhead
         g = torch.cuda.CUDAGraph()
         with torch.cuda.graph(g):
-            for _ in range(n_repeat):
+            for _ in builtins.range(n_repeat):
                 if grad_to_none is not None:
                     for x in grad_to_none:
                         x.grad = None
@@ -83,7 +110,7 @@ def do_bench_cudagraph(fn, rep=20, grad_to_none=None, quantiles=None, return_mod
         # measure time and return
         ret = []
         n_retries = 10
-        for _ in range(n_retries):
+        for _ in builtins.range(n_retries):
             start_event = torch.cuda.Event(enable_timing=True)
             end_event = torch.cuda.Event(enable_timing=True)
             start_event.record()
@@ -130,7 +157,7 @@ def do_bench(fn, warmup=25, rep=100, grad_to_none=None, quantiles=None, return_m
     start_event = di.Event(enable_timing=True)
     end_event = di.Event(enable_timing=True)
     start_event.record()
-    for _ in range(5):
+    for _ in builtins.range(5):
         cache.zero_()
         fn()
     end_event.record()
@@ -140,13 +167,13 @@ def do_bench(fn, warmup=25, rep=100, grad_to_none=None, quantiles=None, return_m
     # compute number of warmup and repeat
     n_warmup = max(1, int(warmup / estimate_ms))
     n_repeat = max(1, int(rep / estimate_ms))
-    start_event = [di.Event(enable_timing=True) for i in range(n_repeat)]
-    end_event = [di.Event(enable_timing=True) for i in range(n_repeat)]
+    start_event = [di.Event(enable_timing=True) for i in builtins.range(n_repeat)]
+    end_event = [di.Event(enable_timing=True) for i in builtins.range(n_repeat)]
     # Warm-up
-    for _ in range(n_warmup):
+    for _ in builtins.range(n_warmup):
         fn()
     # Benchmark
-    for i in range(n_repeat):
+    for i in builtins.range(n_repeat):
         # we don't want `fn` to accumulate gradient values
         # if it contains a backward pass. So we clear the
         # provided gradients
@@ -244,7 +271,7 @@ def do_bench_npu(fn, warmup=5, active=30, prof_dir=None, keep_res=False):
         with_modules=False,
         experimental_config=experimental_config,
     ) as prof:
-        for _ in range(total):
+        for _ in builtins.range(total):
             fn()
             prof.step()
             torch.npu.synchronize()
@@ -622,6 +649,8 @@ from .triton_patch.language.core import (
     gather,
     get_element,
     insert_slice,
+    index_select_simd,
+    index_select,
     extract_slice,
     trans,
     __add__,
@@ -632,6 +661,7 @@ from .triton_patch.language.core import (
     __rmul__,
     __lshift__,
     __rshift__,
+    range,
     parallel,
     compile_hint,
     make_tensor_descriptor,
@@ -642,9 +672,11 @@ from .triton_patch.language.core import (
     sync_block_set,
     sync_block_wait,
     dtype_to_ir,
-    sort
+    sort,
+    load,
 )
-from .triton_patch.language.standard import flip, sigmoid, softmax, isfinited, finitef, rint, atan2
+from .triton_patch.language.core import dot_scaled as core_dot_scaled
+from .triton_patch.language.standard import flip, sigmoid, softmax, isfinited, finitef, rint, atan2, argmax, argmin
 from .triton_patch.language.math import (
     umulhi,
     exp,
@@ -663,6 +695,7 @@ from .triton_patch.language.math import (
     ceil,
     _check_dtype,
     fma,
+    cdiv,
 )
 from .triton_patch.language.semantic import (
     arange,
@@ -692,7 +725,11 @@ language.dot = dot
 language.flip = flip
 language.sigmoid = sigmoid
 language.softmax = softmax
+language.argmax = argmax
+language.argmin = argmin
 language.gather = gather
+language.dot_scaled = core_dot_scaled
+language.index_select = index_select
 language.insert_slice = insert_slice
 language.extract_slice = extract_slice
 language.get_element = get_element
@@ -705,9 +742,11 @@ language.tensor.__rmul__ = __rmul__
 language.tensor.__lshift__ = __lshift__
 language.tensor.__rshift__ = __rshift__
 language.trans = trans
+language.range = range
 language.parallel = parallel
 language.compile_hint = compile_hint
 language.sort = sort
+language.load = load
 language.multibuffer = multibuffer
 language.sync_block_all = sync_block_all
 language.sync_block_set = sync_block_set
@@ -755,6 +794,7 @@ language.floor = floor
 language.ceil = ceil
 language.core.dtype.to_ir = dtype_to_ir
 language.fma = fma
+language.cdiv = cdiv
 language.math.umulhi = umulhi
 language.math.exp = exp
 language.math.exp2 = exp2
@@ -811,3 +851,4 @@ language.extra.ascend.libdevice.ceil = language.math.ceil
 language.extra.ascend.libdevice.fdiv = language.math.fdiv
 language.extra.ascend.libdevice.fma = language.math.fma
 language.extra.ascend.libdevice.abs = language.math.abs
+language.extra.ascend.libdevice.index_select_simd = index_select_simd
