@@ -361,6 +361,7 @@ class Config:
         self.unit_flag = bishengir_options.get("unit_flag", None) # Compiler Default False
         self.limit_auto_multi_buffer_only_for_local_buffer = bishengir_options.get("limit_auto_multi_buffer_only_for_local_buffer", None) # Compiler Default False
         self.limit_auto_multi_buffer_of_local_buffer = bishengir_options.get("limit_auto_multi_buffer_of_local_buffer", None) # Compiler Default no-limit
+        self.enable_ubuf_saving = bishengir_options.get("enable_ubuf_saving", None)
         self.set_workspace_multibuffer = bishengir_options.get("set_workspace_multibuffer", None) # Compiler Default 1
         self.enable_hivm_auto_cv_balance = bishengir_options.get("enable_hivm_auto_cv_balance", None) # Compiler Default True
         self.tile_mix_vector_loop = bishengir_options.get("tile_mix_vector_loop", None) # Compiler Default 1
@@ -389,6 +390,7 @@ class Config:
                     ("limit_auto_multi_buffer_only_for_local_buffer", \
                         self.limit_auto_multi_buffer_only_for_local_buffer),
                     ("limit_auto_multi_buffer_of_local_buffer", self.limit_auto_multi_buffer_of_local_buffer),
+                    ("enable_ubuf_saving", self.enable_ubuf_saving),
                     ("set_workspace_multibuffer", self.set_workspace_multibuffer),
                     ("tile_mix_vector_loop", self.tile_mix_vector_loop),
                     ("tile_mix_cube_loop", self.tile_mix_cube_loop),
@@ -416,6 +418,7 @@ class Config:
         res.append(f"limit_auto_multi_buffer_only_for_local_buffer: \
             {self.limit_auto_multi_buffer_only_for_local_buffer}")
         res.append(f"limit_auto_multi_buffer_of_local_buffer: {self.limit_auto_multi_buffer_of_local_buffer}")
+        res.append(f"enable_ubuf_saving: {self.enable_ubuf_saving}")
         res.append(f"set_workspace_multibuffer: {self.set_workspace_multibuffer}")
         res.append(f"tile_mix_vector_loop: {self.tile_mix_vector_loop}")
         res.append(f"tile_mix_cube_loop: {self.tile_mix_cube_loop}")
