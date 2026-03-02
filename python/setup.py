@@ -806,6 +806,7 @@ if is_py38:
     setup_requires=[]
     install_requires=[]
 install_requires.append("ninja")
+install_requires.append("pybind11")
 setup(
     name=os.environ.get("TRITON_WHEEL_NAME", "triton"),
     version="3.2.0" + get_git_version_suffix() + os.environ.get("TRITON_WHEEL_VERSION_SUFFIX", ""),

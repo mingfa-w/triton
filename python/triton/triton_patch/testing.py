@@ -676,7 +676,7 @@ from .triton_patch.language.core import (
     load,
 )
 from .triton_patch.language.core import dot_scaled as core_dot_scaled
-from .triton_patch.language.standard import flip, sigmoid, softmax, isfinited, finitef, rint, atan2, argmax, argmin
+from .triton_patch.language.standard import flip, sigmoid, softmax, isfinited, finitef, rint, atan2, argmax, argmin, topk
 from .triton_patch.language.math import (
     umulhi,
     exp,
@@ -727,6 +727,7 @@ language.sigmoid = sigmoid
 language.softmax = softmax
 language.argmax = argmax
 language.argmin = argmin
+language.topk = topk
 language.gather = gather
 language.dot_scaled = core_dot_scaled
 language.index_select = index_select

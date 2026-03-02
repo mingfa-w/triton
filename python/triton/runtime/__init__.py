@@ -1,4 +1,4 @@
-from .autotuner import (Autotuner, Config, Heuristics, autotune, heuristics)
+from .autotuner import (Autotuner, Config, Heuristics, autotune, heuristics, get_max_configs, max_autotune)
 from .cache import RedisRemoteCacheBackend, RemoteCacheBackend
 from .driver import driver
 from .jit import JITFunction, KernelInterface, MockTensor, TensorWrapper, reinterpret
@@ -11,6 +11,8 @@ __all__ = [
     "driver",
     "Heuristics",
     "heuristics",
+    "get_max_configs",
+    "max_autotune",
     "InterpreterError",
     "JITFunction",
     "KernelInterface",

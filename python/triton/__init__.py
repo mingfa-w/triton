@@ -1,5 +1,6 @@
 """isort:skip_file"""
-__version__ = '3.2.0'
+
+__version__ = "3.2.0"
 
 # ---------------------------------------
 # Note: import order is significant here.
@@ -9,6 +10,8 @@ from .runtime import (
     autotune,
     Config,
     heuristics,
+    get_max_configs,
+    max_autotune,
     JITFunction,
     KernelInterface,
     reinterpret,
@@ -32,6 +35,8 @@ __all__ = [
     "compile",
     "Config",
     "heuristics",
+    "get_max_configs",
+    "max_autotune",
     "impl",
     "InterpreterError",
     "jit",
