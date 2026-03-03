@@ -249,7 +249,7 @@ def min(input, axis=None, return_indices=False, return_indices_tie_break_left=Tr
 @core._add_reduction_docstr("minimum index", tie_break_arg="tie_break_left")
 def argmin(input, axis, tie_break_left=True, keep_dims=False):
     _, ret = min(input, axis, return_indices=True, return_indices_tie_break_left=tie_break_left, keep_dims=keep_dims)
-
+    return ret
 @jit
 def _xor_combine(a, b):
     return a ^ b
